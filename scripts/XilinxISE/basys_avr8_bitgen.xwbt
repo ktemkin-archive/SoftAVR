@@ -1,0 +1,8 @@
+INTSTYLE=ise
+INFILE=/home/ktemkin/Projects/SoftAVR/scripts/XilinxISE/basys_avr8.ncd
+OUTFILE=/home/ktemkin/Projects/SoftAVR/scripts/XilinxISE/basys_avr8.bit
+FAMILY=Spartan3E
+PART=xc3s250e-4cp132
+WORKINGDIR=/home/ktemkin/Projects/SoftAVR/scripts/XilinxISE
+LICENSE=WebPack
+USER_INFO=176245144_0_0_039

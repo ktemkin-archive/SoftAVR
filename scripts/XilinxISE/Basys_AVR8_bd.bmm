@@ -20,35 +20,35 @@ ADDRESS_MAP avrmap PPC405 0
 
     ADDRESS_SPACE rom_code RAMB16 [0x00000000:0x00003FFF]
         BUS_BLOCK
-            PM_Inst/RAM_Word0 RAMB16 [15:0] [0:1023] PLACED = X0Y3;
+            PM_Inst/RAM_Word0 RAMB16 [15:0] [0:1023] PLACED = X0Y4;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word1 RAMB16 [15:0] [1024:2047] PLACED = X1Y1;
+            PM_Inst/RAM_Word1 RAMB16 [15:0] [1024:2047] PLACED = X1Y2;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word2 RAMB16 [15:0] [2048:3071] PLACED = X1Y4;
+            PM_Inst/RAM_Word2 RAMB16 [15:0] [2048:3071] PLACED = X0Y3;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word3 RAMB16 [15:0] [3072:4095] PLACED = X1Y3;
+            PM_Inst/RAM_Word3 RAMB16 [15:0] [3072:4095] PLACED = X0Y1;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word4 RAMB16 [15:0] [4096:5119] PLACED = X1Y2;
+            PM_Inst/RAM_Word4 RAMB16 [15:0] [4096:5119] PLACED = X0Y0;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word5 RAMB16 [15:0] [5120:6143] PLACED = X0Y1;
+            PM_Inst/RAM_Word5 RAMB16 [15:0] [5120:6143] PLACED = X1Y3;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word6 RAMB16 [15:0] [6144:7167] PLACED = X0Y2;
+            PM_Inst/RAM_Word6 RAMB16 [15:0] [6144:7167] PLACED = X1Y1;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word7 RAMB16 [15:0] [7168:8191] PLACED = X1Y0;
+            PM_Inst/RAM_Word7 RAMB16 [15:0] [7168:8191] PLACED = X0Y2;
         END_BUS_BLOCK;
     END_ADDRESS_SPACE;
 

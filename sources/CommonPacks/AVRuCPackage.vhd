@@ -130,18 +130,18 @@ constant PINF_Address  : std_logic_vector(IOAdrWidth-1 downto 0) := CAVRIOAdr(16
 -- ******************** Parallel port address table **************************************
 constant CMaxNumOfPPort : positive := 6;
 
-type PPortAdrTbl_Type is record Port_Adr : std_logic_vector(IOAdrWidth-1 downto 0);
-	                            DDR_Adr  : std_logic_vector(IOAdrWidth-1 downto 0);
-	                            Pin_Adr  : std_logic_vector(IOAdrWidth-1 downto 0);
+type PPortAdrTbl_Type is record port_address : std_logic_vector(IOAdrWidth-1 downto 0);
+	                            ddr_address  : std_logic_vector(IOAdrWidth-1 downto 0);
+	                            pin_address  : std_logic_vector(IOAdrWidth-1 downto 0);
 end record;
 
 type PPortAdrTblArray_Type is array (0 to CMaxNumOfPPort-1) of PPortAdrTbl_Type;
 
-constant PPortAdrArray : PPortAdrTblArray_Type := ((PORTA_Address,DDRA_Address,PINA_Address),  -- PORTA
-                                                   (PORTB_Address,DDRB_Address,PINB_Address), -- PORTB
-                                                   (PORTC_Address,DDRC_Address,PINC_Address), -- PORTC
-                                                   (PORTD_Address,DDRD_Address,PIND_Address), -- PORTD
-                                                   (PORTE_Address,DDRE_Address,PINE_Address), -- PORTE
+constant port_addresses : PPortAdrTblArray_Type := ((PORTA_Address,DDRA_Address,PINA_Address),  -- PORTA
+                                                   (PORTB_Address,DDRB_Address,PINB_Address),  -- PORTB
+                                                   (PORTC_Address,DDRC_Address,PINC_Address),  -- PORTC
+                                                   (PORTD_Address,DDRD_Address,PIND_Address),  -- PORTD
+                                                   (PORTE_Address,DDRE_Address,PINE_Address),  -- PORTE
                                                    (PORTF_Address,DDRF_Address,PINF_Address)); -- PORTF																	
 
 -- ***************************************************************************************

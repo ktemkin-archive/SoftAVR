@@ -11,21 +11,54 @@ use WORK.AVRuCPackage.all;
 
 package AVR_uC_CompPack is
 
-component pport is generic(PPortNum : natural); 
-	               port(
-	                   -- AVR Control
-               ireset     : in std_logic;
-               cp2	      : in std_logic;
-               adr        : in std_logic_vector(15 downto 0);
-               dbus_in    : in std_logic_vector(7 downto 0);
-               dbus_out   : out std_logic_vector(7 downto 0);
-               iore       : in std_logic;
-               iowe       : in std_logic;
-               out_en     : out std_logic; 
-			            -- External connection
-			   portx      : out std_logic_vector(7 downto 0);
-			   ddrx       : out std_logic_vector(7 downto 0);
-			   pinx       : in  std_logic_vector(7 downto 0));
+--
+-- General Purpose I/O Controller
+--
+component gpio_port is 
+    generic(
+        port_number   : natural;
+        
+        --Data direction "output mask"; allows individual bits of the port to be made input-only.
+        --Any bit set to '0' will be input-only; this allows us to safely attach ports to input
+        --devices, like buttons or switches.
+        output_enable : std_logic_vector(7 downto 0) := x"FF" 
+    ); 
+	port(
+        -- System-wide connections: clock and reset.
+        clk	                : in std_logic;
+        reset_not           : in std_logic;
+
+        --
+        -- Port control signals: read/write enable.
+        --
+        read_enable         : in std_logic;
+        write_enable        : in std_logic;
+
+        --
+        -- Peripheral connections to the system data bus.
+        --
+
+        --Bus "address": specifies which component is currently in control of the bus.
+        bus_addr            : in std_logic_vector(15 downto 0);
+
+        --Bus input- the signal currently being observed on the system data bus.
+        bus_in              : in std_logic_vector(7 downto 0);
+
+        --Bus "drive" control output.
+        --When true, this component is currently trying to drive the system data bus.
+        driving_bus         : out std_logic; 
+
+        --Bus output- the signal currnetly being driven on the system data bus.
+        --When "driving_bus" is false, this value is meaningless.
+        bus_out             : out std_logic_vector(7 downto 0);
+
+        --
+        -- GPIO connections to the outside world.
+        --
+        output_port         : out std_logic_vector(7 downto 0);
+        data_direction      : out std_logic_vector(7 downto 0);
+        input_pins          : in  std_logic_vector(7 downto 0)
+    );
 end component;
 
 
