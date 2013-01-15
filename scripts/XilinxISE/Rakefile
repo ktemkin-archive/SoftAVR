@@ -1,0 +1,122 @@
+require 'ise'
+require 'rake/clean'
+
+#
+# Open the relevant ISE project and extract information about the project.
+#
+PROJECT = ISE::Project.load('Basys-AVR8.xise')
+BUILD_STYLE = 'xflow' #For a more versbose build, choose "xflow".
+
+#
+# Automatically determine the following design parameters.
+# You may override these if you wish for additional customization.
+#
+SOURCES = FileList[PROJECT.source_files]
+PART_NAME = PROJECT.full_part_name 
+TOPLEVEL = File.basename(PROJECT.top_level_file, File.extname(PROJECT.top_level_file)).downcase
+UCF_FILE = SOURCES.find { |file| File.extname(file).downcase == '.ucf' }
+BMM_FILE = SOURCES.find { |file| File.extname(file).downcase == '.bmm' }
+
+#
+# Defines the files that should be automatically cleaned up.
+#
+CLEAN.include \
+  %w{ *.bgn *.bld *.cmd_log *.drc *.ll *.lso *.msd *.msk *.ncd *.ngc *.ngd 
+      *.ngr *.pad *.par *.pcf *.prj *.ptwx *.rbb *.rbd *.stx *.syr *.twr
+      *.twx *.unroutes *.ut *.xpi *.xst *_bitgen.xwbt *_envsettings.html 
+      *_map.map *_map.mrp *_map.ngm *_map.xrpt *_ngdbuild.xrpt *_pad.csv
+      *_pad.txt *_par.xrpt *_summary.html *_summary.xml *_usage.xml *_xst.xrpt 
+      xaw2vhdl.log *.gise par_usage_statistics.html usage_statistics_webtalk.html webtalk.log
+      webtalk_pn.xml iseconfig/ xlnx_auto_0_xdb/ xst/ _ngo/ _xmsgs/ }
+CLOBBER.include('*.bit')
+
+
+#Build a bit-file by default.
+task :default => "#{TOPLEVEL}.bit"
+
+#
+# Generate Programm File
+# Generates a bitstream file for the given design.
+#
+task "#{TOPLEVEL}.bit" => "#{TOPLEVEL}_map.ncd" do
+  sh "bitgen -intstyle ise -f #{TOPLEVEL}.ut #{TOPLEVEL}.ncd"
+end
+
+#
+# Place and Route the design: select the physical location for each of the primitives
+# on the device, and route the connections between them.
+#
+task "#{TOPLEVEL}_map.ncd" => "#{TOPLEVEL}.ncd" do
+  sh "par -w -intstyle #{BUILD_STYLE} -ol high -t 1 #{TOPLEVEL}_map.ncd #{TOPLEVEL}.ncd #{TOPLEVEL}.pcf"
+end
+
+#
+# Map the logic that compose the design to the actual devices
+# that compose the particular FPGA target.
+#
+task "#{TOPLEVEL}.ncd" => "#{TOPLEVEL}.ngd" do
+  sh "map -intstyle #{BUILD_STYLE} -p #{PART_NAME} -cm area -ir off -pr off -u -c 100 -o #{TOPLEVEL}.ncd #{TOPLEVEL}.ngd #{TOPLEVEL}.pcf"
+end
+
+#
+# Translate the project into a NGD netlist-- this translates an
+# abstract design (e.g. your logic) into actual logic devices.
+# 
+task "#{TOPLEVEL}.ngd" => "#{TOPLEVEL}.syr" do
+
+  #If the project contains a BMM file, use it to create a BMM definition file.
+  bmm_build = BMM_FILE ? "-bm \"#{BMM_FILE}\"" : '';
+
+  #Run NGDBuild to translate the design.
+  sh "ngdbuild -intstyle #{BUILD_STYLE} -dd _ngo -nt on -uc \"#{UCF_FILE}\" #{bmm_build} -p #{PART_NAME} #{TOPLEVEL}.ngc #{TOPLEVEL}.ngd"
+
+end
+
+#
+# Synthesize the project.
+# This converts your hardware descriptions into an abstract representation
+# of the contained logic (a "netlist").
+#
+task "#{TOPLEVEL}.syr" => ["#{TOPLEVEL}.prj", *SOURCES] do
+
+  #Create the default project navigator temporar directory, if it does not already exist.
+  mkdir_p "xst/projnav.tmp"
+
+  #And run XST to synthesize the design.
+  #sh "xst -intstyle #{BUILD_STYLE} -ifn \"#{TOPLEVEL}.xst\" -ofn \"#{TOPLEVEL}.syr\""
+  sh "xst -intstyle #{BUILD_STYLE} -ifn \"#{TOPLEVEL}.prj\" -ofn \"#{TOPLEVEL}.syr\""
+
+end
+
+#
+# Automatically generate the PRJ file, which lists all sources in the file.
+#
+task "#{TOPLEVEL}.prj" => SOURCES do |t|
+
+  #Start off with an empty project file.
+  File::open(t.name, 'w') do |file|
+
+    #Add each known source to the project.
+    SOURCES.each do |source|
+     
+      #Determine the correct file type for the source file.
+      file_type = \
+        case File.extname(source)
+        when ".vhd" then "vhdl"
+        when ".v" then "verilog"
+        else nil
+        end
+
+      #If this wasn't a known file type, skip it.
+      next unless file_type
+
+      #TODO: Figure out how to determine the library for non-work files.
+      library = 'work'
+
+      #Add the given entry to the PRJ file.
+      file << "#{file_type} #{library} #{source}\n"
+      
+    end
+  end
+
+end
