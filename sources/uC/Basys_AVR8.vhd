@@ -41,7 +41,8 @@ entity basys_avr8 is port(
 
     --Board clock: this is the clock we recieve from outside of our FPGA.
     --In most cases, it will be a small 50MHz oscillator on the Basys board.
-    board_clk    : in    std_logic;
+    onboard_clk    : in    std_logic;
+    user_clk       : in    std_logic;
 
     --AVR General-Purpose Inputs and Ouptuts (GPIO)
     --These allow our AVR microcontroller to interface with the outside world!
@@ -73,10 +74,16 @@ architecture structure of basys_avr8 is
     constant CImplport_b			            : boolean := TRUE;
     constant CImplport_c						: boolean := TRUE;
     constant CImplport_d    			        : boolean := TRUE;
-    constant CImplport_e      			    : boolean := TRUE;
-    constant CImplport_f           			: boolean := TRUE;
-    constant CImplUART      			    : boolean := TRUE;	--AVR8 UART peripheral
-    constant CImplTmrCnt     				: boolean := TRUE;	--AVR8 Timer
+    constant CImplport_e      			        : boolean := TRUE;
+    constant CImplport_f           		    	: boolean := TRUE;
+    constant CImplUART      			        : boolean := TRUE;	--AVR8 UART peripheral
+    constant CImplTmrCnt     			    	: boolean := TRUE;	--AVR8 Timer
+
+    --If the constant below is set to true, the core will attempt to use the socketed User Oscillator
+    --as the system clock, most closely emulating the behavior of a true AVR.
+    --
+    --A 16MHz user clock is recommended; Digi-Key part number #CTX795-ND seems to work.
+    constant use_user_clock : boolean := TRUE;
 
 
     component XDM4Kx8
@@ -113,11 +120,6 @@ architecture structure of basys_avr8 is
         clk0_out : out std_logic
     );
     end component;
-
--- ############################## Define Components for User Cores ##################################################
-
-
--- ###############################################################################################################
 
     -- ############################## Signals connected directly to the core ##########################################
 
@@ -332,14 +334,44 @@ begin
     vcc  <= '1';
     -- Added for Synopsys compatibility	
 
-    nrst <= '1';										--Comment this to connect reset to an external pushbutton.
+    --
+    -- Reset control.
+    --
+    nrst <= '1';										
 
-	Inst_DCM50to16: DCM50to16 PORT MAP(
-		CLKIN_IN => board_clk,
-		CLKFX_OUT => clk,
-		CLKIN_IBUFG_OUT => open,
-		CLK0_OUT => open
-	);
+
+    --
+    -- If the configuration directive above states _not_ to use the user clock,
+    -- then create a 16MHz clock from the Basys board's on-board 50MHz clock.
+    --
+    SELECT_BOARD_CLOCK:
+    if not use_user_clock generate
+
+        --
+        -- This Digial Clock Manager (DCM) generates a 16MHz clock from the Basys board's
+        -- on-board 50MHz clock. The result is less accurate than a decided, external oscillator
+        -- (which should be preferred, if available), and doens't work well for anything timing-dependant.
+        --
+        SYSTEM_CLOCK_GENERATOR: 
+        DCM50to16 PORT MAP(
+            CLKIN_IN => onboard_clk,
+            CLKFX_OUT => clk,
+            CLKIN_IBUFG_OUT => open,
+            CLK0_OUT => open
+        );
+
+    end generate;
+
+    --
+    -- If the configuration directive above says _to_ use the user clock,
+    -- use that clock directly.
+    --
+    SELECT_USER_CLOCK:
+    if use_user_clock generate
+        --Use the board clock as the system clock directly.
+        clk <= user_clk;
+    end generate;
+
 
     core_inst <= pm_dout;
 

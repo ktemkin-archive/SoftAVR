@@ -2,9 +2,9 @@
 # 
 #
 
-# clock pin for Basys2 Board
-NET "board_clk" LOC = "B8" | PERIOD = 20ns; #Uncomment this line to use the Basys board on-board oscillator.
-#NET "clk" LOC = "M6" | PERIOD = 20ns; #Uncomment this line to the external, user oscillator.
+# Possible clock pins for the Basys2 board.
+NET "onboard_clk" LOC = "B8" | PERIOD = 20ns; 
+NET "user_clk" LOC = "M6" | PERIOD = 62.5ns; 
 
 #AVR port_ A
 NET "port_c<0>" LOC = "B2"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA1
