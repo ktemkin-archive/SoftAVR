@@ -246,8 +246,8 @@ architecture structure of basys_avr8 is
 
     -- Place Holder Signals for JTAG instead of connecting them externally
     signal TRSTn         : std_logic;     
-    signal TMS         : std_logic;     
-    signal TCK          : std_logic;      
+    signal TMS           : std_logic;     
+    signal TCK           : std_logic;      
     signal TDI           : std_logic;
     signal TDO           : std_logic;
 
