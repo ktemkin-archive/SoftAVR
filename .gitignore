@@ -41,6 +41,9 @@
 *_summary.xml
 *_usage.xml
 *_xst.xrpt
+*.map
+*.ngm
+*.mrp
 
 # IP-core-related generated files
 xaw2vhdl.log
