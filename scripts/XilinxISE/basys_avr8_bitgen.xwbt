@@ -1,8 +1,0 @@
-INTSTYLE=ise
-INFILE=/home/ktemkin/Documents/Projects/SoftAVR/scripts/XilinxISE/basys_avr8.ncd
-OUTFILE=/home/ktemkin/Documents/Projects/SoftAVR/scripts/XilinxISE/basys_avr8.bit
-FAMILY=Spartan3E
-PART=xc3s250e-4cp132
-WORKINGDIR=/home/ktemkin/Documents/Projects/SoftAVR/scripts/XilinxISE
-LICENSE=ISE
-USER_INFO=176001380_174130829_174418706_724

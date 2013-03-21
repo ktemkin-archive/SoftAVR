@@ -50,7 +50,7 @@ entity gpio_port is
         --When true, this component is currently trying to drive the system data bus.
         driving_bus         : out std_logic; 
 
-        --Bus output- the signal currnetly being driven on the system data bus.
+        --Bus output- the signal currently being driven on the system data bus.
         --When "driving_bus" is false, this value is meaningless.
         bus_out             : out std_logic_vector(7 downto 0);
 

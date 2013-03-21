@@ -1,7 +1,7 @@
 // BMM LOC annotation file.
 //
 // Release 13.4 -  P.15xf, build 2.8 Mar 16, 2012
-// Copyright (c) 1995-2012 Xilinx, Inc.  All rights reserved.
+// Copyright (c) 1995-2013 Xilinx, Inc.  All rights reserved.
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -24,27 +24,27 @@ ADDRESS_MAP avrmap PPC405 0
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word1 RAMB16 [15:0] [1024:2047] PLACED = X0Y1;
+            PM_Inst/RAM_Word1 RAMB16 [15:0] [1024:2047] PLACED = X1Y3;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word2 RAMB16 [15:0] [2048:3071] PLACED = X0Y0;
+            PM_Inst/RAM_Word2 RAMB16 [15:0] [2048:3071] PLACED = X0Y2;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word3 RAMB16 [15:0] [3072:4095] PLACED = X0Y5;
+            PM_Inst/RAM_Word3 RAMB16 [15:0] [3072:4095] PLACED = X0Y1;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word4 RAMB16 [15:0] [4096:5119] PLACED = X0Y2;
+            PM_Inst/RAM_Word4 RAMB16 [15:0] [4096:5119] PLACED = X0Y0;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word5 RAMB16 [15:0] [5120:6143] PLACED = X1Y1;
+            PM_Inst/RAM_Word5 RAMB16 [15:0] [5120:6143] PLACED = X0Y4;
         END_BUS_BLOCK;
 
         BUS_BLOCK
-            PM_Inst/RAM_Word6 RAMB16 [15:0] [6144:7167] PLACED = X0Y4;
+            PM_Inst/RAM_Word6 RAMB16 [15:0] [6144:7167] PLACED = X1Y1;
         END_BUS_BLOCK;
 
         BUS_BLOCK

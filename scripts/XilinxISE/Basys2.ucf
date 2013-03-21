@@ -7,25 +7,25 @@ NET "onboard_clk" LOC = "B8" | PERIOD = 20ns;
 NET "user_clk" LOC = "M6" | PERIOD = 62.5ns; 
 
 #AVR port_ A
-NET "port_c<0>" LOC = "B2"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA1
-NET "port_c<1>" LOC = "A3"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA2
-NET "port_c<2>" LOC = "J3"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA3
-NET "port_c<3>" LOC = "B5"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA4
-NET "port_c<4>" LOC = "C6"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB1
-NET "port_c<5>" LOC = "B6"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB2
-NET "port_c<6>" LOC = "C5"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB3
-NET "port_c<7>" LOC = "B7"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB4
+NET "port_b<7>" LOC = "B2"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA1
+NET "port_b<6>" LOC = "A3"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA2
+NET "port_b<5>" LOC = "J3"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA3
+NET "port_b<4>" LOC = "B5"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JA4
+NET "port_b<3>" LOC = "C6"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB1
+NET "port_b<2>" LOC = "B6"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB2
+NET "port_b<1>" LOC = "C5"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB3
+NET "port_b<0>" LOC = "B7"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JB4
 	
 
 #AVR port_B
-NET "port_b<0>" LOC = "A9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC1
-NET "port_b<1>" LOC = "B9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC2
-NET "port_b<2>" LOC = "A10" | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC3
-NET "port_b<3>" LOC = "C9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC4
-NET "port_b<4>" LOC = "C12"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JD1
-NET "port_b<5>" LOC = "A13"  | DRIVE = 2  | PULLUP ; # Bank = 2, Signal name = JD2
-NET "port_b<6>" LOC = "C13"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JD3
-NET "port_b<7>" LOC = "D12"  | DRIVE = 2  | PULLUP ; # Bank = 2, Signal name = JD4 
+#NET "port_c<7>" LOC = "A9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC1
+#NET "port_c<6>" LOC = "B9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC2
+#NET "port_c<5>" LOC = "A10" | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC3
+#NET "port_c<4>" LOC = "C9"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JC4
+NET "port_c<3>" LOC = "C12"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JD1
+NET "port_c<2>" LOC = "A13"  | DRIVE = 2  | PULLUP ; # Bank = 2, Signal name = JD2
+NET "port_c<1>" LOC = "C13"  | DRIVE = 2  | PULLUP ; # Bank = 1, Signal name = JD3
+NET "port_c<0>" LOC = "D12"  | DRIVE = 2  | PULLUP ; # Bank = 2, Signal name = JD4 
 #
 
 #
@@ -50,19 +50,19 @@ NET "port_b<7>" LOC = "D12"  | DRIVE = 2  | PULLUP ; # Bank = 2, Signal name = J
 #
 ## Pin assignment for DispCtl
 ## Connected to Basys2 onBoard 7seg display
-#NET "seg<0>" LOC = "L14"; # Bank = 1, Signal name = CA
-#NET "seg<1>" LOC = "H12"; # Bank = 1, Signal name = CB
-#NET "seg<2>" LOC = "N14"; # Bank = 1, Signal name = CC
-#NET "seg<3>" LOC = "N11"; # Bank = 2, Signal name = CD
-#NET "seg<4>" LOC = "P12"; # Bank = 2, Signal name = CE
-#NET "seg<5>" LOC = "L13"; # Bank = 1, Signal name = CF
-#NET "seg<6>" LOC = "M12"; # Bank = 1, Signal name = CG
+NET "sseg_cathodes<0>" LOC = "L14"; # Bank = 1, Signal name = CA
+NET "sseg_cathodes<1>" LOC = "H12"; # Bank = 1, Signal name = CB
+NET "sseg_cathodes<2>" LOC = "N14"; # Bank = 1, Signal name = CC
+NET "sseg_cathodes<3>" LOC = "N11"; # Bank = 2, Signal name = CD
+NET "sseg_cathodes<4>" LOC = "P12"; # Bank = 2, Signal name = CE
+NET "sseg_cathodes<5>" LOC = "L13"; # Bank = 1, Signal name = CF
+NET "sseg_cathodes<6>" LOC = "M12"; # Bank = 1, Signal name = CG
 #NET "dp" LOC = "N13"; # Bank = 1, Signal name = DP
 #
-#NET "an<3>" LOC = "K14"; # Bank = 1, Signal name = AN3
-#NET "an<2>" LOC = "M13"; # Bank = 1, Signal name = AN2
-#NET "an<1>" LOC = "J12"; # Bank = 1, Signal name = AN1
-#NET "an<0>" LOC = "F12"; # Bank = 1, Signal name = AN0
+NET "sseg_anodes<3>" LOC = "K14"; # Bank = 1, Signal name = AN3
+NET "sseg_anodes<2>" LOC = "M13"; # Bank = 1, Signal name = AN2
+NET "sseg_anodes<1>" LOC = "J12"; # Bank = 1, Signal name = AN1
+NET "sseg_anodes<0>" LOC = "F12"; # Bank = 1, Signal name = AN0
 #
 ## Pin assignment for LEDs
 NET "port_a<7>" LOC = "G1" ; # Bank = 3, Signal name = LD7
@@ -75,14 +75,14 @@ NET "port_a<1>" LOC = "M11" ; # Bank = 2, Signal name = LD1
 NET "port_a<0>" LOC = "M5" ;  # Bank = 2, Signal name = LD0
 ##
 ### Pin assignment for SWs
-#NET "port_C<7>" LOC = "N3";  # Bank = 2, Signal name = SW7
-#NET "port_C<6>" LOC = "E2";  # Bank = 3, Signal name = SW6
-#NET "port_C<5>" LOC = "F3";  # Bank = 3, Signal name = SW5
-#NET "port_C<4>" LOC = "G3";  # Bank = 3, Signal name = SW4
-#NET "port_C<3>" LOC = "B4";  # Bank = 3, Signal name = SW3
-#NET "port_C<2>" LOC = "K3";  # Bank = 3, Signal name = SW2
-#NET "port_C<1>" LOC = "L3";  # Bank = 3, Signal name = SW1
-#NET "port_C<0>" LOC = "P11";  # Bank = 2, Signal name = SW0
+NET "port_d<7>" LOC = "N3";  # Bank = 2, Signal name = SW7
+NET "port_d<6>" LOC = "E2";  # Bank = 3, Signal name = SW6
+NET "port_d<5>" LOC = "F3";  # Bank = 3, Signal name = SW5
+NET "port_d<4>" LOC = "G3";  # Bank = 3, Signal name = SW4
+NET "port_d<3>" LOC = "B4";  # Bank = 3, Signal name = SW3
+NET "port_d<2>" LOC = "K3";  # Bank = 3, Signal name = SW2
+NET "port_d<1>" LOC = "L3";  # Bank = 3, Signal name = SW1
+NET "port_d<0>" LOC = "P11";  # Bank = 2, Signal name = SW0
 ##
 #NET "RESET" LOC = "A7";  # Bank = 1, Signal name = BTN3
 ##NET "btn<2>" LOC = "M4";  # Bank = 0, Signal name = BTN2

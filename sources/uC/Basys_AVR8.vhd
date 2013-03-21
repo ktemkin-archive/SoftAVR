@@ -49,9 +49,13 @@ entity basys_avr8 is port(
     port_a  : inout std_logic_vector(7 downto 0);
     port_b  : inout std_logic_vector(7 downto 0);
     port_c  : inout std_logic_vector(7 downto 0);
-    port_d  : inout std_logic_vector(7 downto 0);
-    port_e  : inout std_logic_vector(7 downto 0);
-    port_f  : inout std_logic_vector(7 downto 0);
+    port_d  : in std_logic_vector(7 downto 0);
+    --port_e  : inout std_logic_vector(7 downto 0);
+    --port_f  : inout std_logic_vector(7 downto 0);
+
+    --sseg outputs
+    sseg_cathodes : out std_logic_vector(6 downto 0);
+    sseg_anodes : out std_logic_vector(3 downto 0);
 
     --Universal Asynchronous Receiver/Transmitter (UART)
     --This is our microcontroller's serial port!
@@ -83,7 +87,7 @@ architecture structure of basys_avr8 is
     --as the system clock, most closely emulating the behavior of a true AVR.
     --
     --A 16MHz user clock is recommended; Digi-Key part number #CTX795-ND seems to work.
-    constant use_user_clock : boolean := TRUE;
+    constant use_user_clock : boolean := FALSE;
 
 
     component XDM4Kx8
@@ -120,6 +124,31 @@ architecture structure of basys_avr8 is
         clk0_out : out std_logic
     );
     end component;
+
+    --
+    -- Component definition for the seven-segment display driver.
+    -- 
+    component sseg_driver is
+
+      port(
+        --clock
+        clk : in std_logic;
+
+        --numeric inputs
+        leftmost, left_center, right_center, rightmost : in std_logic_vector(3 downto 0);
+        
+        --decimal points
+        leftmost_dp, left_center_dp, right_center_dp, rightmost_dp : in std_logic;
+
+        --sseg outputs
+        cathodes : out std_logic_vector(6 downto 0);
+        dp : out std_logic;
+        anodes : out std_logic_vector(3 downto 0)
+      );
+
+    end component;
+
+    signal sseg_left, sseg_right : std_logic_vector(7 downto 0);
 
     -- ############################## Signals connected directly to the core ##########################################
 
@@ -178,11 +207,14 @@ architecture structure of basys_avr8 is
     signal port_dReg : std_logic_vector(port_d'range);
     signal DDRDReg  : std_logic_vector(port_d'range);
 
-    signal port_eReg : std_logic_vector(port_e'range);
-    signal DDREReg  : std_logic_vector(port_e'range);
+    signal port_eReg : std_logic_vector(7 downto 0);
+    --signal port_eReg : std_logic_vector(port_e'range);
+    signal DDREReg  : std_logic_vector(port_eReg'range);
+    --signal DDREReg  : std_logic_vector(port_e'range);
 
-    signal port_fReg : std_logic_vector(port_f'range);
-    signal DDRFReg  : std_logic_vector(port_f'range);
+    signal port_fReg : std_logic_vector(7 downto 0);
+    --signal port_fReg : std_logic_vector(port_f'range);
+    signal DDRFReg  : std_logic_vector(port_fReg'range);
 
     -- Added for Synopsys compatibility
     signal gnd   : std_logic;
@@ -352,13 +384,16 @@ begin
         -- on-board 50MHz clock. The result is less accurate than a decided, external oscillator
         -- (which should be preferred, if available), and doens't work well for anything timing-dependant.
         --
-        SYSTEM_CLOCK_GENERATOR: 
-        DCM50to16 PORT MAP(
-            CLKIN_IN => onboard_clk,
-            CLKFX_OUT => clk,
-            CLKIN_IBUFG_OUT => open,
-            CLK0_OUT => open
-        );
+        --SYSTEM_CLOCK_GENERATOR: 
+        --DCM50to16 PORT MAP(
+        --    CLKIN_IN => onboard_clk,
+        --    CLKFX_OUT => clk,
+        --    CLKIN_IBUFG_OUT => open,
+        --    CLK0_OUT => open
+        --);
+
+      --Temporary 25MHz system clock.
+      clk <= not clk when rising_edge(onboard_clk); 
 
     end generate;
 
@@ -547,7 +582,9 @@ begin
     -- ******************  port_d **************************		
     port_d_Impl:if CImplport_d generate
     port_d_COMP:component gpio_port 
-        generic map (port_number => 3)
+        generic map (
+          port_number => 3
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,
@@ -567,17 +604,41 @@ begin
     io_port_out_en(6) <= port_d_out_en;
 
     -- Tri-state control for port_d
-    port_dZCtrl:for i in port_d'range generate
-    port_d(i) <= port_dReg(i) when DDRDReg(i)='1' else 'Z'; 	
-    end generate;
+    --port_dZCtrl:for i in port_d'range generate
+    --port_d(i) <= port_dReg(i) when DDRDReg(i)='1' else 'Z'; 	
+    --end generate;
 
     end generate;
 
-    port_d_Not_Impl:if not CImplport_d generate
-     port_d <= (others => 'Z');	
-    end generate; 
+    --port_d_Not_Impl:if not CImplport_d generate
+    -- port_d <= (others => 'Z');	
+    --end generate; 
         
     -- ************************************************
+
+    --
+    -- And instatiate the helper seven-segment display driver.
+    --
+    SSEG:
+    sseg_driver port map (
+      clk => onboard_clk,
+
+      leftmost     => port_eReg(7 downto 4),
+      left_center  => port_eReg(3 downto 0),
+      right_center => port_fReg(7 downto 4),
+      rightmost    => port_fReg(3 downto 0),
+
+      leftmost_dp     => '0',
+      left_center_dp  => '0',
+      right_center_dp => '0',
+      rightmost_dp    => '0',
+
+      cathodes => sseg_cathodes,
+      anodes   => sseg_anodes,
+      dp       => open
+
+    );
+
 
     -- ******************  port_e **************************				
     port_e_Impl:if CImplport_e generate
@@ -594,22 +655,22 @@ begin
            driving_bus      => port_e_out_en,
            output_port      => port_eReg,
            data_direction   => DDREReg,
-           input_pins       => port_e
+           input_pins       => x"00"
        );
     -- port_e connection to the external multiplexer
     io_port_out(7) <= port_e_dbusout;
     io_port_out_en(7) <= port_e_out_en;
 
     -- Tri-state control for port_e
-    port_eZCtrl:for i in port_e'range generate
-    port_e(i) <= port_eReg(i) when DDREReg(i)='1' else 'Z'; 	
-    end generate;
+    --port_eZCtrl:for i in port_e'range generate
+    --  port_e(i) <= port_eReg(i) when DDREReg(i)='1' else 'Z'; 	
+    --end generate;
 
     end generate;
 
-    port_e_Not_Impl:if not CImplport_e generate
-     port_e <= (others => 'Z');	
-    end generate; 
+    --port_e_Not_Impl:if not CImplport_e generate
+    -- port_e <= (others => 'Z');	
+    --end generate; 
 
     -- ******************  port_f **************************		
     port_f_Impl:if CImplport_f generate
@@ -626,23 +687,26 @@ begin
            driving_bus      => port_f_out_en,
            output_port      => port_fReg,
            data_direction   => DDRFReg,
-           input_pins       => port_f
+           input_pins       => x"00"
        );
 
     -- port_f connection to the external multiplexer
     io_port_out(8) <= port_f_dbusout;
     io_port_out_en(8) <= port_f_out_en;
 
+
+
+
     -- Tri-state control for port_f
-    port_fZCtrl:for i in port_f'range generate
-        port_f(i) <= port_fReg(i) when DDRFReg(i)='1' else 'Z'; 	
-    end generate;
+    --port_fZCtrl:for i in port_f'range generate
+    --    port_f(i) <= port_fReg(i) when DDRFReg(i)='1' else 'Z'; 	
+    --end generate;
 
     end generate;
 
-    port_f_Not_Impl:if not CImplport_f generate
-     port_f <= (others => 'Z');	
-    end generate; 
+    --port_f_Not_Impl:if not CImplport_f generate
+    -- port_f <= (others => 'Z');	
+    --end generate; 
         
     -- ************************************************
 
