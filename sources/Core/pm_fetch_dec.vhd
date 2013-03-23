@@ -20,143 +20,149 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.std_logic_unsigned.all;
+use IEEE.numeric_std.all;
 
 use WORK.AVRuCPackage.all;
 
 entity pm_fetch_dec is port(
-                              -- Clock and reset
-                              cp2              : in  std_logic;
-							  cp2en            : in  std_logic; 
-                              ireset           : in  std_logic;
-							  -- JTAG OCD support
-							  valid_instr      : out  std_logic;
-						      insert_nop       : in   std_logic; 
-						      block_irq        : in   std_logic;
-						      change_flow      : out  std_logic;
-							  -- Program memory
-                              pc               : out std_logic_vector (15 downto 0);   
-                              inst             : in  std_logic_vector (15 downto 0);
-                              -- I/O control
-                              adr              : out std_logic_vector (15 downto 0); 	
-                              iore             : out std_logic;                       
-                              iowe             : out std_logic;						
-                              -- Data memory control
-                              ramadr           : out std_logic_vector (15 downto 0);
-                              ramre            : out std_logic;
-                              ramwe            : out std_logic;
-                              cpuwait          : in  std_logic;
-							  -- Data paths
-                              dbusin           : in  std_logic_vector (7 downto 0);
-                              dbusout          : out std_logic_vector (7 downto 0);
-                              -- Interrupt
-                              irqlines         : in  std_logic_vector (22 downto 0);
-                              irqack           : out std_logic;
-                              irqackad         : out std_logic_vector(4 downto 0);
-						      --Sleep 
-                              sleepi	       : out std_logic;
-                              irqok	           : out std_logic;
-                              --Watchdog
-                              wdri	           : out std_logic;
-							  -- ALU interface(Data inputs)
-                              alu_data_r_in    : out std_logic_vector(7 downto 0);
-							  -- ALU interface(Instruction inputs)
-							  idc_add_out      : out std_logic;
-                              idc_adc_out      : out std_logic;
-                              idc_adiw_out     : out std_logic;
-                              idc_sub_out      : out std_logic;
-                              idc_subi_out     : out std_logic;
-                              idc_sbc_out      : out std_logic;
-                              idc_sbci_out     : out std_logic;
-                              idc_sbiw_out     : out std_logic;
+  -- Clock and reset
+  cp2              : in  std_logic;
+  cp2en            : in  std_logic; 
+  ireset           : in  std_logic;
 
-                              adiw_st_out      : out std_logic;
-                              sbiw_st_out      : out std_logic;
+  -- JTAG OCD support
+  valid_instr      : out  std_logic;
+  insert_nop       : in   std_logic; 
+  block_irq        : in   std_logic;
+  change_flow      : out  std_logic;
 
-                              idc_and_out      : out std_logic;
-                              idc_andi_out     : out std_logic;
-                              idc_or_out       : out std_logic;
-                              idc_ori_out      : out std_logic;
-                              idc_eor_out      : out std_logic;              
-                              idc_com_out      : out std_logic;              
-                              idc_neg_out      : out std_logic;
+  -- Program memory
+  pc               : out program_address;
+  inst             : in  std_logic_vector (15 downto 0);
 
-                              idc_inc_out      : out std_logic;
-                              idc_dec_out      : out std_logic;
+  -- I/O control
+  adr              : out std_logic_vector (15 downto 0); 	
+  iore             : out std_logic;                       
+  iowe             : out std_logic;						
 
-                              idc_cp_out       : out std_logic;              
-                              idc_cpc_out      : out std_logic;
-                              idc_cpi_out      : out std_logic;
-                              idc_cpse_out     : out std_logic;                            
+  -- Data memory control
+  ramadr           : out std_logic_vector (15 downto 0);
+  ramre            : out std_logic;
+  ramwe            : out std_logic;
+  cpuwait          : in  std_logic;
 
-                              idc_lsr_out      : out std_logic;
-                              idc_ror_out      : out std_logic;
-                              idc_asr_out      : out std_logic;
-                              idc_swap_out     : out std_logic;
+  -- Data paths
+  dbusin           : in  std_logic_vector (7 downto 0);
+  dbusout          : out std_logic_vector (7 downto 0);
 
-                               -- ALU interface(Data output)
-                               alu_data_out    : in std_logic_vector(7 downto 0);
+  -- Interrupt
+  irqlines         : in  std_logic_vector (22 downto 0);
+  irqack           : out std_logic;
+  irqackad         : out std_logic_vector(4 downto 0);
 
-                               -- ALU interface(Flag outputs)
-                               alu_c_flag_out  : in std_logic;
-                               alu_z_flag_out  : in std_logic;
-                               alu_n_flag_out  : in std_logic;
-                               alu_v_flag_out  : in std_logic;
-                               alu_s_flag_out  : in std_logic;
-                               alu_h_flag_out  : in std_logic;
+  --Sleep 
+  sleepi	         : out std_logic;
+  irqok	           : out std_logic;
 
-							   -- General purpose register file interface
-                               reg_rd_in       : out std_logic_vector  (7 downto 0);
-                               reg_rd_out      : in  std_logic_vector  (7 downto 0);
-                               reg_rd_adr      : out std_logic_vector  (4 downto 0);
-                               reg_rr_out      : in  std_logic_vector  (7 downto 0);
-                               reg_rr_adr      : out std_logic_vector  (4 downto 0);
-                               reg_rd_wr       : out std_logic;
+  --Watchdog
+  wdri	           : out std_logic;
 
-                               post_inc        : out std_logic;                       -- POST INCREMENT FOR LD/ST INSTRUCTIONS
-                               pre_dec         : out std_logic;                        -- PRE DECREMENT FOR LD/ST INSTRUCTIONS
-                               reg_h_wr        : out std_logic;
-                               reg_h_out       : in  std_logic_vector (15 downto 0);
-                               reg_h_adr       : out std_logic_vector (2 downto 0);    -- x,y,z
-   		                       reg_z_out       : in  std_logic_vector (15 downto 0);  -- OUTPUT OF R31:R30 FOR LPM/ELPM/IJMP INSTRUCTIONS
-							   
-                               -- I/O register file interface
-                               sreg_fl_in      : out std_logic_vector(7 downto 0); 
-                               globint         : in  std_logic; -- SREG I flag
+  -- ALU interface(Data inputs)
+  alu_data_r_in    : out std_logic_vector(7 downto 0);
 
-                               sreg_fl_wr_en   : out std_logic_vector(7 downto 0);   --FLAGS WRITE ENABLE SIGNALS       
+  -- ALU interface(Instruction inputs)
+  idc_add_out      : out std_logic;
+  idc_adc_out      : out std_logic;
+  idc_adiw_out     : out std_logic;
+  idc_sub_out      : out std_logic;
+  idc_subi_out     : out std_logic;
+  idc_sbc_out      : out std_logic;
+  idc_sbci_out     : out std_logic;
+  idc_sbiw_out     : out std_logic;
 
-                               spl_out         : in  std_logic_vector(7 downto 0);         
-                               sph_out         : in  std_logic_vector(7 downto 0);         
-                               sp_ndown_up     : out std_logic; -- DIRECTION OF CHANGING OF STACK POINTER SPH:SPL 0->UP(+) 1->DOWN(-)
-                               sp_en           : out std_logic; -- WRITE ENABLE(COUNT ENABLE) FOR SPH AND SPL REGISTERS
-  
-                               rampz_out       : in  std_logic_vector(7 downto 0);
-							   
-							   -- Bit processor interface
-                               bit_num_r_io    : out std_logic_vector (2 downto 0); -- BIT NUMBER FOR CBI/SBI/BLD/BST/SBRS/SBRC/SBIC/SBIS INSTRUCTIONS
-                               bitpr_io_out    : in  std_logic_vector(7 downto 0);  -- SBI/CBI OUT        
-                               branch          : out std_logic_vector (2 downto 0); -- NUMBER (0..7) OF BRANCH CONDITION FOR BRBS/BRBC INSTRUCTION
-                               bit_pr_sreg_out : in  std_logic_vector(7 downto 0);  -- BCLR/BSET/BST(T-FLAG ONLY)             
-                               bld_op_out      : in  std_logic_vector(7 downto 0);  -- BLD OUT (T FLAG)
-                               bit_test_op_out : in  std_logic;                     -- OUTPUT OF SBIC/SBIS/SBRS/SBRC
+  adiw_st_out      : out std_logic;
+  sbiw_st_out      : out std_logic;
 
-                               sbi_st_out      : out std_logic;
-                               cbi_st_out      : out std_logic;
+  idc_and_out      : out std_logic;
+  idc_andi_out     : out std_logic;
+  idc_or_out       : out std_logic;
+  idc_ori_out      : out std_logic;
+  idc_eor_out      : out std_logic;              
+  idc_com_out      : out std_logic;              
+  idc_neg_out      : out std_logic;
 
-                               idc_bst_out     : out std_logic;
-                               idc_bset_out    : out std_logic;
-                               idc_bclr_out    : out std_logic;
+  idc_inc_out      : out std_logic;
+  idc_dec_out      : out std_logic;
 
-                               idc_sbic_out    : out std_logic;
-                               idc_sbis_out    : out std_logic;
-              
-                               idc_sbrs_out    : out std_logic;
-                               idc_sbrc_out    : out std_logic;
-              
-                               idc_brbs_out    : out std_logic;
-                               idc_brbc_out    : out std_logic;
+  idc_cp_out       : out std_logic;              
+  idc_cpc_out      : out std_logic;
+  idc_cpi_out      : out std_logic;
+  idc_cpse_out     : out std_logic;                            
 
-                               idc_reti_out    : out std_logic);
+  idc_lsr_out      : out std_logic;
+  idc_ror_out      : out std_logic;
+  idc_asr_out      : out std_logic;
+  idc_swap_out     : out std_logic;
+
+  -- ALU interface(Data output)
+  alu_data_out    : in std_logic_vector(7 downto 0);
+
+  -- ALU interface(Flag outputs)
+  alu_flags_out   : in flag_set;
+
+  -- General purpose register file interface
+  reg_rd_in       : out std_logic_vector  (7 downto 0);
+  reg_rd_out      : in  std_logic_vector  (7 downto 0);
+  reg_rd_adr      : out std_logic_vector  (4 downto 0);
+  reg_rr_out      : in  std_logic_vector  (7 downto 0);
+  reg_rr_adr      : out std_logic_vector  (4 downto 0);
+  reg_rd_wr       : out std_logic;
+
+  post_inc        : out std_logic;                       -- POST INCREMENT FOR LD/ST INSTRUCTIONS
+  pre_dec         : out std_logic;                        -- PRE DECREMENT FOR LD/ST INSTRUCTIONS
+  reg_h_wr        : out std_logic;
+  reg_h_out       : in  std_logic_vector (15 downto 0);
+  reg_h_adr       : out std_logic_vector (2 downto 0);    -- x,y,z
+  reg_z_out       : in  std_logic_vector (15 downto 0);  -- OUTPUT OF R31:R30 FOR LPM/ELPM/IJMP INSTRUCTIONS
+
+  -- I/O register file interface
+  sreg_fl_in      : out std_logic_vector(7 downto 0); 
+  globint         : in  std_logic; -- SREG I flag
+
+  sreg_fl_wr_en   : out std_logic_vector(7 downto 0);   --FLAGS WRITE ENABLE SIGNALS       
+
+  spl_out         : in  std_logic_vector(7 downto 0);         
+  sph_out         : in  std_logic_vector(7 downto 0);         
+  sp_ndown_up     : out std_logic; -- DIRECTION OF CHANGING OF STACK POINTER SPH:SPL 0->UP(+) 1->DOWN(-)
+  sp_en           : out std_logic; -- WRITE ENABLE(COUNT ENABLE) FOR SPH AND SPL REGISTERS
+
+  rampz_out       : in  std_logic_vector(7 downto 0);
+
+  -- Bit processor interface
+  bit_num_r_io    : out std_logic_vector (2 downto 0); -- BIT NUMBER FOR CBI/SBI/BLD/BST/SBRS/SBRC/SBIC/SBIS INSTRUCTIONS
+  bitpr_io_out    : in  std_logic_vector(7 downto 0);  -- SBI/CBI OUT        
+  branch          : out std_logic_vector (2 downto 0); -- NUMBER (0..7) OF BRANCH CONDITION FOR BRBS/BRBC INSTRUCTION
+  bit_pr_sreg_out : in  std_logic_vector(7 downto 0);  -- BCLR/BSET/BST(T-FLAG ONLY)             
+  bld_op_out      : in  std_logic_vector(7 downto 0);  -- BLD OUT (T FLAG)
+  bit_test_op_out : in  std_logic;                     -- OUTPUT OF SBIC/SBIS/SBRS/SBRC
+
+  sbi_st_out      : out std_logic;
+  cbi_st_out      : out std_logic;
+
+  idc_bst_out     : out std_logic;
+  idc_bset_out    : out std_logic;
+  idc_bclr_out    : out std_logic;
+
+  idc_sbic_out    : out std_logic;
+  idc_sbis_out    : out std_logic;
+
+  idc_sbrs_out    : out std_logic;
+  idc_sbrc_out    : out std_logic;
+
+  idc_brbs_out    : out std_logic;
+  idc_brbc_out    : out std_logic;
+
+  idc_reti_out    : out std_logic);
 end pm_fetch_dec;
 
 architecture RTL of pm_fetch_dec is
@@ -827,10 +833,10 @@ iowe_int <= '1' when ((idc_out or sbi_st or cbi_st) or
 
 
 -- adr[5..0] BUS MULTIPLEXER
-adr_int <= "0000000000"&dex_adr6port when (idc_in or idc_out) = '1' else                          -- IN/OUT INSTRUCTIONS  
-           "0000000000"&'0'&dex_adr5port when (idc_cbi or idc_sbi or idc_sbic or idc_sbis) ='1'    else  -- CBI/SBI (READ PHASE) + SBIS/SBIC
-		   "0000000000"&'0'&cbi_sbi_io_adr_tmp when (cbi_st or sbi_st)='1' else	-- CBI/SBI (WRITE PHASE)
-		    ramadr_int-x"20"; --(6)&ramadr_int(4 downto 0);                                                   -- LD/LDS/LDD/ST/STS/STD
+adr_int <= "0000000000" & dex_adr6port when (idc_in or idc_out) = '1' else                          -- IN/OUT INSTRUCTIONS  
+           "0000000000" &'0'&dex_adr5port when (idc_cbi or idc_sbi or idc_sbic or idc_sbis) ='1'    else  -- CBI/SBI (READ PHASE) + SBIS/SBIC
+		       "0000000000" &'0'&cbi_sbi_io_adr_tmp when (cbi_st or sbi_st)='1' else	-- CBI/SBI (WRITE PHASE)
+		        ramadr_int-x"20"; --(6)&ramadr_int(4 downto 0);                                                   -- LD/LDS/LDD/ST/STS/STD
 
 -- ramre LOGIC (16 BIT ADDRESS ramadr[15..0] FOR DATA RAM (64*1024-64-32 LOCATIONS))
 --ramre_int <= not(reg_file_adr_space or io_file_adr_space) and 
@@ -1066,7 +1072,7 @@ end process;
 -- STATE MACHINES
 
 skip_inst_start <= ((idc_sbrc or idc_sbrs or idc_sbic or idc_sbis) and bit_test_op_out)or
-                   (idc_cpse and alu_z_flag_out);
+                   (idc_cpse and alu_flags_out.z);
 
 skip_instruction_sm:process(cp2,ireset)
 begin
@@ -1293,7 +1299,7 @@ cpu_busy <= idc_adiw or idc_sbiw or idc_cbi or idc_sbi or
 --			idc_reti or nreti_st0;                              -- At least one instruction must be executed after RETI and before the new interrupt.
 			idc_reti or reti_st1 or reti_st2;
 			
-sreg_adr_eq <= '1' when adr_int=SREG_Address else '0';			
+sreg_adr_eq <= '1' when adr_int = SREG_Address else '0';			
 
 --irq_start <= irq_int and not cpu_busy and globint;
 irq_start <= irq_int and not cpu_busy and globint;
@@ -1440,7 +1446,7 @@ sreg_t_wr_en <=  idc_bst or sreg_bop_wr_en(6);
 sreg_i_wr_en <= irq_st1 or reti_st3 or sreg_bop_wr_en(7); -- WAS "irq_start"
 
 sreg_fl_in <=  bit_pr_sreg_out when (idc_bst or idc_bclr or idc_bset)='1' else		           -- TO THE SREG
-reti_st3&'0'&alu_h_flag_out&alu_s_flag_out&alu_v_flag_out&alu_n_flag_out&alu_z_flag_out&alu_c_flag_out;      
+reti_st3&'0'&alu_flags_out.h&alu_flags_out.s&alu_flags_out.v&alu_flags_out.n&alu_flags_out.z&alu_flags_out.c;      
                
 -- #################################################################################################################
 

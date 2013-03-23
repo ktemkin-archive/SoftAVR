@@ -16,8 +16,15 @@ package AVR_uC_CompPack is
 --
 component gpio_port is 
     generic(
-        port_number   : natural;
-        
+        --Address of this component's output "PORT" register.
+        port_address  : io_address;
+    
+        --Address of this component's output "PIN" register.
+        pin_address   : io_address;
+
+        --Address of this component's "DDR" register.
+        ddr_address   : io_address;
+
         --Data direction "output mask"; allows individual bits of the port to be made input-only.
         --Any bit set to '0' will be input-only; this allows us to safely attach ports to input
         --devices, like buttons or switches.

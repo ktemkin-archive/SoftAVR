@@ -74,14 +74,14 @@ architecture structure of basys_avr8 is
 
     --These "constants" allow us to easily configure the way the Xilinx tools
     --interpret our microcontroller code below. 
-    constant CImplport_a			            : boolean := TRUE;
-    constant CImplport_b			            : boolean := TRUE;
-    constant CImplport_c						: boolean := TRUE;
-    constant CImplport_d    			        : boolean := TRUE;
-    constant CImplport_e      			        : boolean := TRUE;
-    constant CImplport_f           		    	: boolean := TRUE;
-    constant CImplUART      			        : boolean := TRUE;	--AVR8 UART peripheral
-    constant CImplTmrCnt     			    	: boolean := TRUE;	--AVR8 Timer
+    constant CImplport_a  : boolean := TRUE;
+    constant CImplport_b  : boolean := TRUE;
+    constant CImplport_c  : boolean := TRUE;
+    constant CImplport_d  : boolean := TRUE;
+    constant CImplport_e  : boolean := TRUE;
+    constant CImplport_f 	: boolean := TRUE;
+    constant CImplUART    : boolean := TRUE;	--AVR8 UART peripheral
+    constant CImplTmrCnt 	: boolean := TRUE;	--AVR8 Timer
 
     --If the constant below is set to true, the core will attempt to use the socketed User Oscillator
     --as the system clock, most closely emulating the behavior of a true AVR.
@@ -487,7 +487,11 @@ begin
 
     -- ******************  port_a **************************				
     port_a_COMP:component gpio_port  
-        generic map(port_number => 0)
+        generic map(
+           port_address     => PORTA_address,
+           pin_address      => PINA_address,
+           ddr_address      => DDRA_address
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,
@@ -515,7 +519,11 @@ begin
     -- ******************  port_b **************************		
     port_b_Impl:if CImplport_b generate
     port_b_COMP:component gpio_port 
-        generic map (port_number => 1)
+        generic map(
+           port_address     => PORTB_address,
+           pin_address      => PINB_address,
+           ddr_address      => DDRB_address
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,
@@ -550,7 +558,11 @@ begin
     -- ******************  port_c **************************				
     port_c_Impl:if CImplport_c generate
     port_c_COMP:component gpio_port  
-        generic map(port_number => 2)
+        generic map(
+           port_address     => PORTC_address,
+           pin_address      => PINC_address,
+           ddr_address      => DDRC_address
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,
@@ -582,8 +594,10 @@ begin
     -- ******************  port_d **************************		
     port_d_Impl:if CImplport_d generate
     port_d_COMP:component gpio_port 
-        generic map (
-          port_number => 3
+        generic map(
+           port_address     => PORTD_address,
+           pin_address      => PIND_address,
+           ddr_address      => DDRD_address
         )
         port map(
            clk	            => clk,
@@ -643,7 +657,11 @@ begin
     -- ******************  port_e **************************				
     port_e_Impl:if CImplport_e generate
     port_e_COMP:component gpio_port  
-        generic map(port_number => 4)
+        generic map(
+           port_address     => PORTE_address,
+           pin_address      => PINE_address,
+           ddr_address      => DDRE_address
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,
@@ -675,7 +693,11 @@ begin
     -- ******************  port_f **************************		
     port_f_Impl:if CImplport_f generate
     port_f_COMP:component gpio_port 
-        generic map (port_number => 5)
+        generic map(
+           port_address     => PORTF_address,
+           pin_address      => PINF_address,
+           ddr_address      => DDRF_address
+        )
         port map(
            clk	            => clk,
            reset_not        => core_ireset,

@@ -18,7 +18,16 @@ use WORK.SynchronizerCompPack.all; -- Component declarations for the synchronize
 
 entity gpio_port is 
     generic(
-        port_number   : natural;
+
+        --Address of this component's output "PORT" register.
+        port_address  : io_address;
+    
+        --Address of this component's output "PIN" register.
+        pin_address   : io_address;
+
+        --Address of this component's "DDR" register.
+        ddr_address   : io_address;
+        
         
         --Data direction "output mask"; allows individual bits of the port to be made input-only.
         --Any bit set to '0' will be input-only; this allows us to safely attach ports to input
@@ -91,9 +100,9 @@ begin
     --checking the address which currently "owns" the bus, which is provided as an input.
     --If the address is equal to that of any of our internal registers, than that register should 
     --have "control" of the bus.
-    output_port_selected     <= '1' when bus_addr = port_addresses(port_number).port_address else '0';
-    data_direction_selected  <= '1' when bus_addr = port_addresses(port_number).ddr_address else '0';	
-    input_pins_selected      <= '1' when bus_addr = port_addresses(port_number).pin_address else '0';	
+    output_port_selected     <= '1' when bus_addr = port_address else '0';
+    data_direction_selected  <= '1' when bus_addr = ddr_address else '0';	
+    input_pins_selected      <= '1' when bus_addr = pin_address else '0';	
         
     --Determine if the GPIO port is currently trying to "talk" on the bus (i.e. drive the bus's value).
     --The GPIO port "talks" whenever one of its registers has control of the bus, and the port's read enable is '1'.

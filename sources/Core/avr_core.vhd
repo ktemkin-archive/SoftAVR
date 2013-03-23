@@ -12,6 +12,7 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 
 use Work.AVR_Core_CompPack.all;
+use WORK.AVRucPackage.all;
 
 entity AVR_Core is port(
                         --Clock and reset
@@ -143,12 +144,7 @@ signal reg_file_rd_in  : std_logic_vector(7 downto 0);
 
 signal bit_test_op_out : std_logic;
 
-signal alu_c_flag_out  : std_logic;
-signal alu_z_flag_out  : std_logic;
-signal alu_n_flag_out  : std_logic;
-signal alu_v_flag_out  : std_logic;
-signal alu_s_flag_out  : std_logic;
-signal alu_h_flag_out  : std_logic;
+signal alu_flags_out   : flag_set;
  
 begin
 
@@ -223,13 +219,10 @@ pm_fetch_dec_Inst:component pm_fetch_dec port map(
                                      idc_swap_out => idc_swap,
                                      -- ALU interface(Data output)
                                      alu_data_out => alu_data_out,
+
                                      -- ALU interface(Flag outputs)
-                                     alu_c_flag_out => alu_c_flag_out,
-                                     alu_z_flag_out => alu_z_flag_out,
-                                     alu_n_flag_out => alu_n_flag_out,
-                                     alu_v_flag_out => alu_v_flag_out,
-                                     alu_s_flag_out => alu_s_flag_out,
-                                     alu_h_flag_out => alu_h_flag_out,
+                                     alu_flags_out => alu_flags_out,
+
                                      -- General purpose register file interface
                                      reg_rd_in   => reg_rd_in,
                                      reg_rd_out  => reg_rd_out,
@@ -380,56 +373,53 @@ IORegs_Inst: component io_reg_file port map(
 
 
 
-ALU_Inst:component alu_avr port map(
-			  -- Data inputs
-              alu_data_r_in => alu_data_r_in,
-              alu_data_d_in => reg_rd_out,
-              
-              alu_c_flag_in => sreg_out(0),
-              alu_z_flag_in => sreg_out(1),
-              -- Instructions and states
-              idc_add  => idc_add,
-              idc_adc  => idc_adc,      
-              idc_adiw => idc_adiw,     
-              idc_sub  => idc_sub,     
-              idc_subi => idc_subi,     
-              idc_sbc  => idc_sbc,     
-              idc_sbci => idc_sbci,     
-              idc_sbiw => idc_sbiw,     
+CORE_ALU:
+component alu_avr port map(
+  -- Data inputs
+  alu_data_r_in => alu_data_r_in,
+  alu_data_d_in => reg_rd_out,
 
-              adiw_st  => adiw_st,     
-              sbiw_st  => sbiw_st,     
+  alu_c_flag_in => sreg_out(0),
+  alu_z_flag_in => sreg_out(1),
+  -- Instructions and states
+  idc_add  => idc_add,
+  idc_adc  => idc_adc,      
+  idc_adiw => idc_adiw,     
+  idc_sub  => idc_sub,     
+  idc_subi => idc_subi,     
+  idc_sbc  => idc_sbc,     
+  idc_sbci => idc_sbci,     
+  idc_sbiw => idc_sbiw,     
 
-              idc_and  => idc_and,     
-              idc_andi => idc_andi,     
-              idc_or   => idc_or,     
-              idc_ori  => idc_ori,     
-              idc_eor  => idc_eor,     
-              idc_com  => idc_com,     
-              idc_neg  => idc_neg,     
+  adiw_st  => adiw_st,     
+  sbiw_st  => sbiw_st,     
 
-              idc_inc  => idc_inc,     
-              idc_dec  => idc_dec,     
+  idc_and  => idc_and,     
+  idc_andi => idc_andi,     
+  idc_or   => idc_or,     
+  idc_ori  => idc_ori,     
+  idc_eor  => idc_eor,     
+  idc_com  => idc_com,     
+  idc_neg  => idc_neg,     
 
-              idc_cp   => idc_cp,     
-              idc_cpc  => idc_cpc,     
-              idc_cpi  => idc_cpi,    
-              idc_cpse => idc_cpse,     
+  idc_inc  => idc_inc,     
+  idc_dec  => idc_dec,     
 
-              idc_lsr  => idc_lsr,     
-              idc_ror  => idc_ror,      
-              idc_asr  => idc_asr,      
-              idc_swap => idc_swap,      
-              -- Data outputs
-              alu_data_out => alu_data_out,  
-			  -- Flag outputs
-              alu_c_flag_out => alu_c_flag_out,
-              alu_z_flag_out => alu_z_flag_out,
-              alu_n_flag_out => alu_n_flag_out,
-              alu_v_flag_out => alu_v_flag_out,
-              alu_s_flag_out => alu_s_flag_out,
-              alu_h_flag_out => alu_h_flag_out);
+  idc_cp   => idc_cp,     
+  idc_cpc  => idc_cpc,     
+  idc_cpi  => idc_cpi,    
+  idc_cpse => idc_cpse,     
 
+  idc_lsr  => idc_lsr,     
+  idc_ror  => idc_ror,      
+  idc_asr  => idc_asr,      
+  idc_swap => idc_swap,      
+  -- Data outputs
+  alu_data_out => alu_data_out,  
+
+  -- Flag outputs
+  flags_out => alu_flags_out
+);
 
 -- Outputs
 adr      <= adr_int;     

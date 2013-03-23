@@ -10,6 +10,8 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 
+use WORK.AVRucPackage.all;
+
 
 entity alu_avr is port(
 
@@ -59,12 +61,7 @@ entity alu_avr is port(
               alu_data_out    : out std_logic_vector(7 downto 0);
 
 -- FLAGS OUTPUT
-              alu_c_flag_out  : out std_logic;
-              alu_z_flag_out  : out std_logic;
-              alu_n_flag_out  : out std_logic;
-              alu_v_flag_out  : out std_logic;
-              alu_s_flag_out  : out std_logic;
-              alu_h_flag_out  : out std_logic
+              flags_out   : out flag_set
 );
 
 end alu_avr;
@@ -133,20 +130,20 @@ idc_cpc or
 idc_ror);
                                           
 -- SREG Z FLAG ()
--- alu_z_flag_out <= (alu_z_flag_out_int and not(adiw_st or sbiw_st)) or 
+-- flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st)) or 
 --                   ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st));
-alu_z_flag_out <= (alu_z_flag_out_int and not(adiw_st or sbiw_st or idc_cpc or idc_sbc or idc_sbci)) or 
+flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st or idc_cpc or idc_sbc or idc_sbci)) or 
                   ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st))or
 				  (alu_z_flag_in and alu_z_flag_out_int and(idc_cpc or idc_sbc or idc_sbci));   -- Previous value (for CPC/SBC/SBCI instructions)
 
 -- SREG N FLAG
-alu_n_flag_out <= alu_n_flag_out_int;				  
+flags_out.n<= alu_n_flag_out_int;				  
 				  
 -- SREG V FLAG
-alu_v_flag_out <= alu_v_flag_out_int;				  
+flags_out.v<= alu_v_flag_out_int;				  
 
 
-alu_c_flag_out <= alu_c_flag_out_int;				  
+flags_out.c<= alu_c_flag_out_int;				  
 
 alu_data_out <= alu_data_out_int;
 
@@ -291,12 +288,12 @@ end generate;
 
 --@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ALU FLAGS OUTPUTS @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-alu_h_flag_out <= (adder_carry(3) and                                                      -- ADDER INSTRUCTIONS
+flags_out.h<= (adder_carry(3) and                                                      -- ADDER INSTRUCTIONS
              (idc_add or idc_adc or idc_sub or idc_subi or idc_sbc or idc_sbci or idc_cp or idc_cpc or idc_cpi)) or   
              (not neg_op_carry(3) and idc_neg); -- H-flag problem with NEG instruction fixing                                         -- NEG
              
              
-alu_s_flag_out <= alu_n_flag_out_int xor alu_v_flag_out_int;
+flags_out.s<= alu_n_flag_out_int xor alu_v_flag_out_int;
 
 alu_v_flag_out_int <= (adder_v_flag_out and	               
              (idc_add or idc_adc or idc_sub or idc_subi or idc_sbc or idc_sbci or adiw_st or sbiw_st or idc_cp or idc_cpi or idc_cpc)) or

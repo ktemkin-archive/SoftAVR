@@ -8,6 +8,7 @@
 
 library IEEE;
 use IEEE.std_logic_1164.all;
+use WORK.AVRuCPackage.all;
 
 package AVR_Core_CompPack is
 	
@@ -85,12 +86,7 @@ component pm_fetch_dec is port(
                                alu_data_out    : in std_logic_vector(7 downto 0);
 
                                -- ALU interface(Flag outputs)
-                               alu_c_flag_out  : in std_logic;
-                               alu_z_flag_out  : in std_logic;
-                               alu_n_flag_out  : in std_logic;
-                               alu_v_flag_out  : in std_logic;
-                               alu_s_flag_out  : in std_logic;
-                               alu_h_flag_out  : in std_logic;
+                               alu_flags_out   : in flag_set;
 
 							   -- General purpose register file interface
                                reg_rd_in       : out std_logic_vector  (7 downto 0);
@@ -197,12 +193,7 @@ component alu_avr is port(
               alu_data_out    : out std_logic_vector(7 downto 0);
 
 -- FLAGS OUTPUT
-              alu_c_flag_out  : out std_logic;
-              alu_z_flag_out  : out std_logic;
-              alu_n_flag_out  : out std_logic;
-              alu_v_flag_out  : out std_logic;
-              alu_s_flag_out  : out std_logic;
-              alu_h_flag_out  : out std_logic
+              flags_out       : out flag_set
 );
 
 end component;
