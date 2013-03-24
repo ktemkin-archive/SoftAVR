@@ -27,9 +27,9 @@ entity AVR_Core is port(
   pc          : out std_logic_vector(15 downto 0);   
   inst        : in  std_logic_vector(15 downto 0);
   -- I/O control
-  adr         : out std_logic_vector(15 downto 0); 	
-  iore        : out std_logic;                       
-  iowe        : out std_logic;						
+  adr         : buffer std_logic_vector(15 downto 0); 	
+  iore        : buffer std_logic;                       
+  iowe        : buffer std_logic;						
   -- Data memory control
   ramadr      : out std_logic_vector(15 downto 0);
   ramre       : out std_logic;
@@ -37,7 +37,7 @@ entity AVR_Core is port(
   cpuwait     : in  std_logic;
   -- Data paths
   dbusin      : in  std_logic_vector(7 downto 0);
-  dbusout     : out std_logic_vector(7 downto 0);
+  dbusout     : buffer std_logic_vector(7 downto 0);
   -- Interrupt
   irqlines    : in  std_logic_vector(22 downto 0);
   irqack      : out std_logic;
@@ -54,12 +54,6 @@ end AVR_Core;
 architecture Struct of avr_core is
 
   signal dbusin_int  : std_logic_vector(7 downto 0);
-  signal dbusout_int : std_logic_vector(7 downto 0);
-
-  signal adr_int     : std_logic_vector(15 downto 0);      
-
-  signal iowe_int    : std_logic;
-  signal iore_int    : std_logic;
 
   -- SIGNALS FOR INSTRUCTION AND STATES
   signal active_operation : decoded_operation;
@@ -129,9 +123,9 @@ component pm_fetch_dec port map(
   pc       => pc,    
   inst     => inst,
   -- I/O control
-  adr      => adr_int,
-  iore     => iore_int,
-  iowe     => iowe_int,
+  adr      => adr,
+  iore     => iore,
+  iowe     => iowe,
   -- Data memory control
   ramadr   => ramadr,
   ramre    => ramre,
@@ -139,7 +133,7 @@ component pm_fetch_dec port map(
   cpuwait  => cpuwait,
   -- Data paths
   dbusin   => dbusin_int,
-  dbusout  => dbusout_int,
+  dbusout  => dbusout,
   -- Interrupt
   irqlines => irqlines,
   irqack   => irqack,
@@ -207,27 +201,29 @@ component pm_fetch_dec port map(
 
 REGISTERS:
 component reg_file port map (
-		  	                           --Clock and reset
-					                   cp2         => cp2,
-									   cp2en       => cp2en,
-                                       ireset      => ireset,
-		  
-                                       reg_rd_in   => reg_rd_in,
-                                       reg_rd_out  => reg_rd_out,
-                                       reg_rd_adr  => reg_rd_adr,
-                                       reg_rr_out  => reg_rr_out,
-                                       reg_rr_adr  => reg_rr_adr,
-                                       reg_rd_wr   => reg_rd_wr,
+  --Clock and reset
+  cp2         => cp2,
+  cp2en       => cp2en,
+  ireset      => ireset,
 
-                                       post_inc    => post_inc,
-                                       pre_dec     => pre_dec,
-                                       reg_h_wr    => reg_h_wr,
-                                       reg_h_out   => reg_h_out,
-                                       reg_h_adr   => reg_h_adr,
-   		                               reg_z_out   => reg_z_out);
+  reg_rd_in   => reg_rd_in,
+  reg_rd_out  => reg_rd_out,
+  reg_rd_adr  => reg_rd_adr,
+  reg_rr_out  => reg_rr_out,
+  reg_rr_adr  => reg_rr_adr,
+  reg_rd_wr   => reg_rd_wr,
+
+  post_inc    => post_inc,
+  pre_dec     => pre_dec,
+  reg_h_wr    => reg_h_wr,
+  reg_h_out   => reg_h_out,
+  reg_h_adr   => reg_h_adr,
+  reg_z_out   => reg_z_out
+);
 
 
-BP_Inst:component bit_processor port map(
+BIT_ALU:
+component bit_processor port map(
 
   operation => active_operation,
 
@@ -252,43 +248,47 @@ BP_Inst:component bit_processor port map(
 
   -- Instructions and states
   sbi_st   => sbi_st,       
-  cbi_st   => cbi_st);                      
+  cbi_st   => cbi_st
+);                      
 
 
-io_dec_Inst:component io_adr_dec port map (
-                                            adr          => adr_int,
-                                            iore         => iore_int,
-                                            dbusin_int   => dbusin_int,			-- LOCAL DATA BUS OUTPUT
-                                            dbusin_ext   => dbusin,               -- EXTERNAL DATA BUS INPUT
+io_dec_Inst:
+component io_adr_dec port map (
+  adr          => adr,
+  iore         => iore,
+  dbusin_int   => dbusin_int,			-- LOCAL DATA BUS OUTPUT
+  dbusin_ext   => dbusin,               -- EXTERNAL DATA BUS INPUT
 
-                                            spl_out      => spl_out,
-                                            sph_out      => sph_out,
-                                            sreg_out     => sreg_out,
-                                            rampz_out    => rampz_out
-                                          );
+  spl_out      => spl_out,
+  sph_out      => sph_out,
+  sreg_out     => sreg_out,
+  rampz_out    => rampz_out
+);
 
-IORegs_Inst: component io_reg_file port map(
-                                          --Clock and reset
-                                             cp2        => cp2,
-                                             cp2en    => cp2en,
-                                             ireset     => ireset,     
+IORegs_Inst: 
+component io_reg_file port map(
 
-                                             adr        => adr_int,       
-                                             iowe       => iowe_int,
-                                             dbusout    => dbusout_int,     
+  --Clock and reset
+  cp2        => cp2,
+  cp2en    => cp2en,
+  ireset     => ireset,     
 
-                                             sreg_fl_in => sreg_fl_in,
-                                             sreg_out   => sreg_out,
+  adr        => adr,       
+  iowe       => iowe,
+  dbusout    => dbusout,     
 
-                                             sreg_fl_wr_en => sreg_fl_wr_en,
+  sreg_fl_in => sreg_fl_in,
+  sreg_out   => sreg_out,
 
-                                             spl_out    => spl_out,    
-                                             sph_out    => sph_out,    
-                                             sp_ndown_up => sp_ndown_up, 
-                                             sp_en      => sp_en,   
+  sreg_fl_wr_en => sreg_fl_wr_en,
 
-                                             rampz_out  => rampz_out);
+  spl_out    => spl_out,    
+  sph_out    => sph_out,    
+  sp_ndown_up => sp_ndown_up, 
+  sp_en      => sp_en,   
 
+  rampz_out  => rampz_out
+);
 
 
 ALU:
@@ -312,12 +312,6 @@ component alu_avr port map(
   -- Flag outputs
   flags_out => alu_flags_out
 );
-
--- Outputs
-adr      <= adr_int;     
-iowe     <= iowe_int;
-iore     <= iore_int;
-dbusout  <= dbusout_int;
 
 -- Sleep support
 globint	<= sreg_out(7); -- I flag
