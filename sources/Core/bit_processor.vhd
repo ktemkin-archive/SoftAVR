@@ -3,42 +3,37 @@
 -- Version 1.3(Special version for the JTAG OCD)
 -- Designed by Ruslan Lepetenok
 -- Modified 29.08.2003
--- Unused inputs(sreg_bit_num[2..0],idc_sbi,idc_cbi,idc_bld) was removed.
+-- Unused inputs(sreg_bit_num[2..0],operation.is_sbi,operation.is_cbi,operation.is_bld) was removed.
 --************************************************************************************************
 
 library IEEE;
 use IEEE.std_logic_1164.all;
 use IEEE.std_logic_unsigned.all;
 
+use work.AVRuCPackage.all;
+
 entity bit_processor is port(
-  							  --Clock and reset
-                              cp2             : in  std_logic;
-							  cp2en           : in  std_logic;
-                              ireset          : in  std_logic;            
-              
-                              bit_num_r_io    : in  std_logic_vector(2 downto 0); -- BIT NUMBER FOR CBI/SBI/BLD/BST/SBRS/SBRC/SBIC/SBIS INSTRUCTIONS
-                              dbusin          : in  std_logic_vector(7 downto 0); -- SBI/CBI/SBIS/SBIC  IN
-                              bitpr_io_out    : out std_logic_vector(7 downto 0); -- SBI/CBI OUT        
-                              sreg_out        : in  std_logic_vector(7 downto 0); -- BRBS/BRBC/BLD IN 
-                              branch          : in  std_logic_vector(2 downto 0); -- NUMBER (0..7) OF BRANCH CONDITION FOR BRBS/BRBC INSTRUCTION
-                              bit_pr_sreg_out : out std_logic_vector(7 downto 0); -- BCLR/BSET/BST(T-FLAG ONLY)             
-                              bld_op_out      : out std_logic_vector(7 downto 0); -- BLD OUT (T FLAG)
-                              reg_rd_out      : in  std_logic_vector(7 downto 0); -- BST/SBRS/SBRC IN    
-                              bit_test_op_out : out std_logic;                    -- OUTPUT OF SBIC/SBIS/SBRS/SBRC/BRBC/BRBS
-                              -- Instructions and states
-                              sbi_st          : in  std_logic;
-                              cbi_st          : in  std_logic;
-                              idc_bst         : in  std_logic;
-                              idc_bset        : in  std_logic;
-                              idc_bclr        : in  std_logic;
-                              idc_sbic        : in  std_logic;
-                              idc_sbis        : in  std_logic;
-                              idc_sbrs        : in  std_logic;
-                              idc_sbrc        : in  std_logic;
-                              idc_brbs        : in  std_logic;
-                              idc_brbc        : in  std_logic;
-                              idc_reti        : in  std_logic
-							  );
+  operation       : in decoded_operation;
+
+  --Clock and reset
+  cp2             : in  std_logic;
+  cp2en           : in  std_logic;
+  ireset          : in  std_logic;            
+
+  bit_num_r_io    : in  std_logic_vector(2 downto 0); -- BIT NUMBER FOR CBI/SBI/BLD/BST/SBRS/SBRC/SBIC/SBIS INSTRUCTIONS
+  dbusin          : in  std_logic_vector(7 downto 0); -- SBI/CBI/SBIS/SBIC  IN
+  bitpr_io_out    : out std_logic_vector(7 downto 0); -- SBI/CBI OUT        
+  sreg_out        : in  std_logic_vector(7 downto 0); -- BRBS/BRBC/BLD IN 
+  branch          : in  std_logic_vector(2 downto 0); -- NUMBER (0..7) OF BRANCH CONDITION FOR BRBS/BRBC INSTRUCTION
+  bit_pr_sreg_out : out std_logic_vector(7 downto 0); -- BCLR/BSET/BST(T-FLAG ONLY)             
+  bld_op_out      : out std_logic_vector(7 downto 0); -- BLD OUT (T FLAG)
+  reg_rd_out      : in  std_logic_vector(7 downto 0); -- BST/SBRS/SBRC IN    
+  bit_test_op_out : out std_logic;                    -- OUTPUT OF SBIC/SBIS/SBRS/SBRC/BRBC/BRBS
+
+  -- Instructions and states
+  sbi_st          : in  std_logic;
+  cbi_st          : in  std_logic
+);
 
 end bit_processor;
 
@@ -105,26 +100,26 @@ end generate;
 
 -- BCLR/BSET/BST/RETI LOGIC
 bclr_bset_logic:for i in 0 to 6 generate
-bit_pr_sreg_out_int(i) <= (idc_bset and not reg_rd_out(i)) or (not idc_bclr and reg_rd_out(i));
+bit_pr_sreg_out_int(i) <= (operation.is_bset and not reg_rd_out(i)) or (not operation.is_bclr and reg_rd_out(i));
 end generate;
 -- SREG REGISTER BIT 7 - INTERRUPT ENABLE FLAG
-bit_pr_sreg_out_int(7) <= (idc_bset and not reg_rd_out(7)) or (not idc_bclr and reg_rd_out(7)) or idc_reti;
+bit_pr_sreg_out_int(7) <= (operation.is_bset and not reg_rd_out(7)) or (not operation.is_bclr and reg_rd_out(7)) or operation.is_reti;
 
-bit_pr_sreg_out <= bit_pr_sreg_out_int(7)&sreg_t_temp(7)&bit_pr_sreg_out_int(5 downto 0) when (idc_bst='1')
+bit_pr_sreg_out <= bit_pr_sreg_out_int(7)&sreg_t_temp(7)&bit_pr_sreg_out_int(5 downto 0) when (operation.is_bst='1')
                                                                                    else bit_pr_sreg_out_int;
 
 -- SBIC/SBIS/SBRS/SBRC LOGIC
-bit_test_in <= dbusin when (idc_sbis='1' or idc_sbic='1') else reg_rd_out; 
+bit_test_in <= dbusin when (operation.is_sbis='1' or operation.is_sbic='1') else reg_rd_out; 
 
 bit_test_mux_out(0) <= bit_test_in(0) when bit_num_decode(0)='1' else '0';
 it_test_mux:for i in 1 to 7 generate
 bit_test_mux_out(i)<= bit_test_in(i) when bit_num_decode(i)='1' else bit_test_mux_out(i-1);
 end generate;
 
-bit_test_op_out <= (bit_test_mux_out(7) and (idc_sbis or idc_sbrs)) or
-                   (not bit_test_mux_out(7) and (idc_sbic or idc_sbrc)) or
-                   (branch_mux(7) and idc_brbs) or
-                   (not branch_mux(7) and idc_brbc);
+bit_test_op_out <= (bit_test_mux_out(7) and (operation.is_sbis or operation.is_sbrs)) or
+                   (not bit_test_mux_out(7) and (operation.is_sbic or operation.is_sbrc)) or
+                   (branch_mux(7) and operation.is_brbs) or
+                   (not branch_mux(7) and operation.is_brbc);
 
 -- BRBS/BRBC LOGIC
 

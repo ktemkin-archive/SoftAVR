@@ -36,17 +36,15 @@ entity io_reg_file is port (
 end io_reg_file;
 
 architecture rtl of io_reg_file is
-signal sreg    : std_logic_vector(7 downto 0);
-signal sph     : std_logic_vector(7 downto 0);
-signal spl     : std_logic_vector(7 downto 0);
-signal rampz   : std_logic_vector(7 downto 0);
+  signal sreg    : std_logic_vector(7 downto 0);
+  signal sph     : std_logic_vector(7 downto 0);
+  signal spl     : std_logic_vector(7 downto 0);
+  signal rampz   : std_logic_vector(7 downto 0);
 
-signal sp_int  : std_logic_vector(15 downto 0);
-signal sp_intp : std_logic_vector(15 downto 0);
-signal sp_intm : std_logic_vector(15 downto 0);
-signal sp_res : std_logic_vector(15 downto 0);
-
-
+  signal sp_int  : std_logic_vector(15 downto 0);
+  signal sp_intp : std_logic_vector(15 downto 0);
+  signal sp_intm : std_logic_vector(15 downto 0);
+  signal sp_res : std_logic_vector(15 downto 0);
 begin
 
 sreg_write:process(cp2,ireset)

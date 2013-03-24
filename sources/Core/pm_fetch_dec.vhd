@@ -9,7 +9,7 @@
 --  SLEEP and CLRWDT instructions support was added
 --  V-flag bug fixed (AND/ANDI/OR/ORI/EOR)
 --  V-flag bug fixed (ADIW/SBIW)
---  Unused outputs(sreg_bit_num[2..0],idc_sbi_out,idc_cbi_out,idc_bld_out) were removed.
+--  Unused outputs(sreg_bit_num[2..0],active_operation.is_sbi_out,active_operation.is_cbi_out,active_operation.is_bld_out) were removed.
 --  Output alu_data_d_in[7..0] was removed.
 --  Gloabal clock enable(cp2en) was added  
 --  cpu_busy(push/pop) + irq bug was fixed 14.07.05
@@ -22,7 +22,7 @@ use IEEE.std_logic_1164.all;
 use IEEE.std_logic_unsigned.all;
 use IEEE.numeric_std.all;
 
-use WORK.AVRuCPackage.all;
+use work.AVRuCPackage.all;
 
 entity pm_fetch_dec is port(
   -- Clock and reset
@@ -71,38 +71,10 @@ entity pm_fetch_dec is port(
   alu_data_r_in    : out std_logic_vector(7 downto 0);
 
   -- ALU interface(Instruction inputs)
-  idc_add_out      : out std_logic;
-  idc_adc_out      : out std_logic;
-  idc_adiw_out     : out std_logic;
-  idc_sub_out      : out std_logic;
-  idc_subi_out     : out std_logic;
-  idc_sbc_out      : out std_logic;
-  idc_sbci_out     : out std_logic;
-  idc_sbiw_out     : out std_logic;
+  active_operation : buffer decoded_operation;
 
   adiw_st_out      : out std_logic;
   sbiw_st_out      : out std_logic;
-
-  idc_and_out      : out std_logic;
-  idc_andi_out     : out std_logic;
-  idc_or_out       : out std_logic;
-  idc_ori_out      : out std_logic;
-  idc_eor_out      : out std_logic;              
-  idc_com_out      : out std_logic;              
-  idc_neg_out      : out std_logic;
-
-  idc_inc_out      : out std_logic;
-  idc_dec_out      : out std_logic;
-
-  idc_cp_out       : out std_logic;              
-  idc_cpc_out      : out std_logic;
-  idc_cpi_out      : out std_logic;
-  idc_cpse_out     : out std_logic;                            
-
-  idc_lsr_out      : out std_logic;
-  idc_ror_out      : out std_logic;
-  idc_asr_out      : out std_logic;
-  idc_swap_out     : out std_logic;
 
   -- ALU interface(Data output)
   alu_data_out    : in std_logic_vector(7 downto 0);
@@ -147,22 +119,8 @@ entity pm_fetch_dec is port(
   bit_test_op_out : in  std_logic;                     -- OUTPUT OF SBIC/SBIS/SBRS/SBRC
 
   sbi_st_out      : out std_logic;
-  cbi_st_out      : out std_logic;
+  cbi_st_out      : out std_logic);
 
-  idc_bst_out     : out std_logic;
-  idc_bset_out    : out std_logic;
-  idc_bclr_out    : out std_logic;
-
-  idc_sbic_out    : out std_logic;
-  idc_sbis_out    : out std_logic;
-
-  idc_sbrs_out    : out std_logic;
-  idc_sbrc_out    : out std_logic;
-
-  idc_brbs_out    : out std_logic;
-  idc_brbc_out    : out std_logic;
-
-  idc_reti_out    : out std_logic);
 end pm_fetch_dec;
 
 architecture RTL of pm_fetch_dec is
@@ -350,97 +308,11 @@ signal cbi_sbi_bit_num_tmp  : std_logic_vector (2 downto 0);   --  STORE ADDRESS
 
 -- INSTRUCTIONS DECODER SIGNALS
 
-signal idc_adc     : std_logic; -- INSTRUCTION ADC
-signal idc_add     : std_logic; -- INSTRUCTION ADD
-signal idc_adiw    : std_logic; -- INSTRUCTION ADIW
-signal idc_and     : std_logic; -- INSTRUCTION AND
-signal idc_andi    : std_logic; -- INSTRUCTION ANDI
-signal idc_asr     : std_logic; -- INSTRUCTION ASR
-
-signal idc_bclr    : std_logic; -- INSTRUCTION BCLR
-signal idc_bld     : std_logic; -- INSTRUCTION BLD
-signal idc_brbc    : std_logic; -- INSTRUCTION BRBC
-signal idc_brbs    : std_logic; -- INSTRUCTION BRBS
-signal idc_bset    : std_logic; -- INSTRUCTION BSET
-signal idc_bst     : std_logic; -- INSTRUCTION BST
-
-signal idc_call    : std_logic; -- INSTRUCTION CALL
-signal idc_cbi     : std_logic; -- INSTRUCTION CBI
-signal idc_com     : std_logic; -- INSTRUCTION COM
-signal idc_cp      : std_logic; -- INSTRUCTION CP
-signal idc_cpc     : std_logic; -- INSTRUCTION CPC
-signal idc_cpi     : std_logic; -- INSTRUCTION CPI
-signal idc_cpse    : std_logic; -- INSTRUCTION CPSE
-
-signal idc_dec     : std_logic; -- INSTRUCTION DEC
-
-signal idc_elpm    : std_logic; -- INSTRUCTION ELPM
-signal idc_eor     : std_logic; -- INSTRUCTION EOR
-
-signal idc_icall   : std_logic; -- INSTRUCTION ICALL
-signal idc_ijmp    : std_logic; -- INSTRUCTION IJMP
-
-signal idc_in      : std_logic; -- INSTRUCTION IN
-signal idc_inc     : std_logic; -- INSTRUCTION INC
-
-signal idc_jmp     : std_logic; -- INSTRUCTION JMP
-
-signal idc_ld_x    : std_logic; -- INSTRUCTION LD Rx,X ; LD Rx,X+ ;LD Rx,-X
-signal idc_ld_y    : std_logic; -- INSTRUCTION LD Rx,Y ; LD Rx,Y+ ;LD Rx,-Y
-signal idc_ldd_y   : std_logic; -- INSTRUCTION LDD Rx,Y+q
-signal idc_ld_z    : std_logic; -- INSTRUCTION LD Rx,Z ; LD Rx,Z+ ;LD Rx,-Z
-signal idc_ldd_z   : std_logic; -- INSTRUCTION LDD Rx,Z+q
-
-signal idc_ldi     : std_logic; -- INSTRUCTION LDI
-signal idc_lds     : std_logic; -- INSTRUCTION LDS
-signal idc_lpm     : std_logic; -- INSTRUCTION LPM
-signal idc_lsr     : std_logic; -- INSTRUCTION LSR
-
-signal idc_mov     : std_logic; -- INSTRUCTION MOV
-signal idc_mul     : std_logic; -- INSTRUCTION MUL
-
-signal idc_neg     : std_logic; -- INSTRUCTION NEG
-signal idc_nop     : std_logic; -- INSTRUCTION NOP
-
-signal idc_or      : std_logic; -- INSTRUCTION OR
-signal idc_ori     : std_logic; -- INSTRUCTION ORI
-signal idc_out     : std_logic; -- INSTRUCTION OUT
-
-signal idc_pop     : std_logic; -- INSTRUCTION POP
-signal idc_push    : std_logic; -- INSTRUCTION PUSH
-
-signal idc_rcall   : std_logic; -- INSTRUCTION RCALL
-signal idc_ret     : std_logic; -- INSTRUCTION RET
-signal idc_reti    : std_logic; -- INSTRUCTION RETI
-signal idc_rjmp    : std_logic; -- INSTRUCTION RJMP
-signal idc_ror     : std_logic; -- INSTRUCTION ROR
-
-signal idc_sbc     : std_logic; -- INSTRUCTION SBC
-signal idc_sbci    : std_logic; -- INSTRUCTION SBCI
-signal idc_sbi     : std_logic; -- INSTRUCTION SBI
-signal idc_sbic    : std_logic; -- INSTRUCTION SBIC
-signal idc_sbis    : std_logic; -- INSTRUCTION SBIS
-signal idc_sbiw    : std_logic; -- INSTRUCTION SBIW
-signal idc_sbrc    : std_logic; -- INSTRUCTION SBRC
-signal idc_sbrs    : std_logic; -- INSTRUCTION SBRS
-signal idc_sleep   : std_logic; -- INSTRUCTION SLEEP
-
-signal idc_st_x    : std_logic; -- INSTRUCTION LD X,Rx ; LD X+,Rx ;LD -X,Rx
-signal idc_st_y    : std_logic; -- INSTRUCTION LD Y,Rx ; LD Y+,Rx ;LD -Y,Rx
-signal idc_std_y   : std_logic; -- INSTRUCTION LDD Y+q,Rx
-signal idc_st_z    : std_logic; -- INSTRUCTION LD Z,Rx ; LD Z+,Rx ;LD -Z,Rx
-signal idc_std_z   : std_logic; -- INSTRUCTION LDD Z+q,Rx
-
-signal idc_sts     : std_logic; -- INSTRUCTION STS
-signal idc_sub     : std_logic; -- INSTRUCTION SUB
-signal idc_subi    : std_logic; -- INSTRUCTION SUBI
-signal idc_swap    : std_logic; -- INSTRUCTION SWAP
-
-signal idc_wdr     : std_logic; -- INSTRUCTION WDR
+--signal active_operation : decoded_operation;
 
 -- ADDITIONAL SIGNALS
-signal idc_psinc   :  std_logic; -- POST INCREMENT FLAG FOR LD,ST INSTRUCTIONS
-signal idc_prdec   :  std_logic; -- PRE DECREMENT  FLAG FOR LD,ST INSTRUCTIONS
+signal is_post_increment_operation   :  std_logic; -- POST INCREMENT FLAG FOR LD,ST INSTRUCTIONS
+signal is_pre_decrement_operation    :  std_logic; -- PRE DECREMENT  FLAG FOR LD,ST INSTRUCTIONS
 
 -- ##################################################
 
@@ -512,9 +384,9 @@ if ireset ='0' then
 dex_adrreg_d_latched <= (others => '0');
 elsif (cp2='1' and cp2'event) then
  if (cp2en='1') then 							  -- Clock enable
-  if ((idc_ld_x or idc_ld_y or idc_ldd_y or idc_ld_z or idc_ldd_z) or idc_sts or 
-	  (idc_st_x  or idc_st_y or idc_std_y or idc_st_z or idc_std_z)or idc_lds or 
-	   idc_pop)='1' then 
+  if ((active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z) or active_operation.is_sts or 
+	  (active_operation.is_st_x  or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z)or active_operation.is_lds or 
+	   active_operation.is_pop)='1' then 
    dex_adrreg_d_latched <= dex_adrreg_d;
   end if;
  end if;
@@ -553,183 +425,183 @@ nop_insert_st <= adiw_st or sbiw_st or cbi_st or sbi_st or rjmp_st or ijmp_st or
 			  
 -- INSTRUCTION DECODER (CONNECTED AFTER NOP INSERTION LOGIC)
 
-idc_adc  <= '1' when instruction_code_reg(15 downto 10) = "000111" else '0'; -- 000111XXXXXXXXXX
-idc_add  <= '1' when instruction_code_reg(15 downto 10) = "000011" else '0'; -- 000011XXXXXXXXXX
+active_operation.is_adc  <= '1' when instruction_code_reg(15 downto 10) = "000111" else '0'; -- 000111XXXXXXXXXX
+active_operation.is_add  <= '1' when instruction_code_reg(15 downto 10) = "000011" else '0'; -- 000011XXXXXXXXXX
 
-idc_adiw <= '1' when instruction_code_reg(15 downto 8) = "10010110" else '0'; -- 10010110XXXXXXXX
+active_operation.is_adiw <= '1' when instruction_code_reg(15 downto 8) = "10010110" else '0'; -- 10010110XXXXXXXX
 
-idc_and  <= '1' when instruction_code_reg(15 downto 10) = "001000" else '0'; -- 001000XXXXXXXXXX
-idc_andi <= '1' when instruction_code_reg(15 downto 12) = "0111" else '0'; -- 0111XXXXXXXXXXXX
+active_operation.is_and  <= '1' when instruction_code_reg(15 downto 10) = "001000" else '0'; -- 001000XXXXXXXXXX
+active_operation.is_andi <= '1' when instruction_code_reg(15 downto 12) = "0111" else '0'; -- 0111XXXXXXXXXXXX
 
-idc_asr  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100101" else '0'; -- 1001010XXXXX0101
+active_operation.is_asr  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100101" else '0'; -- 1001010XXXXX0101
 
-idc_bclr <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010011000" else '0'; -- 100101001XXX1000
+active_operation.is_bclr <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010011000" else '0'; -- 100101001XXX1000
 
-idc_bld  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3) = "11111000" else '0'; -- 1111100XXXXX0XXX
+active_operation.is_bld  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3) = "11111000" else '0'; -- 1111100XXXXX0XXX
 
-idc_brbc <= '1' when instruction_code_reg(15 downto 10) = "111101" else '0'; -- 111101XXXXXXXXXX
-idc_brbs <= '1' when instruction_code_reg(15 downto 10) = "111100" else '0'; -- 111100XXXXXXXXXX
+active_operation.is_brbc <= '1' when instruction_code_reg(15 downto 10) = "111101" else '0'; -- 111101XXXXXXXXXX
+active_operation.is_brbs <= '1' when instruction_code_reg(15 downto 10) = "111100" else '0'; -- 111100XXXXXXXXXX
 
-idc_bset <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010001000" else '0'; -- 100101000XXX1000
+active_operation.is_bset <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010001000" else '0'; -- 100101000XXX1000
 
-idc_bst  <= '1' when instruction_code_reg(15 downto 9) = "1111101" else '0'; -- 1111101XXXXXXXXX
+active_operation.is_bst  <= '1' when instruction_code_reg(15 downto 9) = "1111101" else '0'; -- 1111101XXXXXXXXX
 
-idc_call <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010111" else '0'; -- 1001010XXXXX111X
+active_operation.is_call <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010111" else '0'; -- 1001010XXXXX111X
 
-idc_cbi  <= '1' when instruction_code_reg(15 downto 8) = "10011000" else '0'; -- 10011000XXXXXXXX
+active_operation.is_cbi  <= '1' when instruction_code_reg(15 downto 8) = "10011000" else '0'; -- 10011000XXXXXXXX
 
-idc_com  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100000" else '0'; -- 1001010XXXXX0000
+active_operation.is_com  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100000" else '0'; -- 1001010XXXXX0000
 
-idc_cp   <= '1' when instruction_code_reg(15 downto 10) = "000101" else '0'; -- 000101XXXXXXXXXX
+active_operation.is_cp   <= '1' when instruction_code_reg(15 downto 10) = "000101" else '0'; -- 000101XXXXXXXXXX
 
-idc_cpc  <= '1' when instruction_code_reg(15 downto 10) = "000001" else '0'; -- 000001XXXXXXXXXX
+active_operation.is_cpc  <= '1' when instruction_code_reg(15 downto 10) = "000001" else '0'; -- 000001XXXXXXXXXX
 
-idc_cpi  <= '1' when instruction_code_reg(15 downto 12) = "0011" else '0'; -- 0011XXXXXXXXXXXX
+active_operation.is_cpi  <= '1' when instruction_code_reg(15 downto 12) = "0011" else '0'; -- 0011XXXXXXXXXXXX
 
-idc_cpse <= '1' when instruction_code_reg(15 downto 10) = "000100" else '0'; -- 000100XXXXXXXXXX
+active_operation.is_cpse <= '1' when instruction_code_reg(15 downto 10) = "000100" else '0'; -- 000100XXXXXXXXXX
 
-idc_dec  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010101010" else '0'; -- 1001010XXXXX1010
+active_operation.is_dec  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010101010" else '0'; -- 1001010XXXXX1010
 
-idc_elpm <= '1' when instruction_code_reg = "1001010111011000" else '0'; -- 1001010111011000
+active_operation.is_elpm <= '1' when instruction_code_reg = "1001010111011000" else '0'; -- 1001010111011000
 
-idc_eor  <= '1' when instruction_code_reg(15 downto 10) = "001001" else '0'; -- 001001XXXXXXXXXX
+active_operation.is_eor  <= '1' when instruction_code_reg(15 downto 10) = "001001" else '0'; -- 001001XXXXXXXXXX
 
-idc_icall<= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101011001" else '0'; -- 10010101XXXX1001
+active_operation.is_icall<= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101011001" else '0'; -- 10010101XXXX1001
 
-idc_ijmp <= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101001001" else '0'; -- 10010100XXXX1001
+active_operation.is_ijmp <= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101001001" else '0'; -- 10010100XXXX1001
 
-idc_in   <= '1' when instruction_code_reg(15 downto 11) = "10110" else '0'; -- 10110XXXXXXXXXXX
+active_operation.is_in   <= '1' when instruction_code_reg(15 downto 11) = "10110" else '0'; -- 10110XXXXXXXXXXX
 
-idc_inc  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100011" else '0'; -- 1001010XXXXX0011
+active_operation.is_inc  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100011" else '0'; -- 1001010XXXXX0011
 
-idc_jmp  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010110" else '0'; -- 1001010XXXXX110X
+active_operation.is_jmp  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010110" else '0'; -- 1001010XXXXX110X
 
 
 -- LD,LDD 
-idc_ld_x <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001100" or 
+active_operation.is_ld_x <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001100" or 
                      instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001101"	or
 					 instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001110" else '0';
 		
-idc_ld_y <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010001001" or 
+active_operation.is_ld_y <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010001001" or 
 					  instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010001010") else '0'; 
 
-idc_ldd_y<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10001" else '0'; -- 10X0XX0XXXXX1XXX    
+active_operation.is_ldd_y<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10001" else '0'; -- 10X0XX0XXXXX1XXX    
 
-idc_ld_z <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010000001" or 
+active_operation.is_ld_z <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010000001" or 
 					  instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010000010") else '0'; 
 
-idc_ldd_z<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10000" else '0'; -- 10X0XX0XXXXX0XXX       
+active_operation.is_ldd_z<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10000" else '0'; -- 10X0XX0XXXXX0XXX       
 -- ######
 
 
-idc_ldi <= '1' when instruction_code_reg(15 downto 12) = "1110" else '0'; -- 1110XXXXXXXXXXXX
+active_operation.is_ldi <= '1' when instruction_code_reg(15 downto 12) = "1110" else '0'; -- 1110XXXXXXXXXXXX
 
-idc_lds <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010000000" else '0'; -- 1001000XXXXX0000
+active_operation.is_lds <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010000000" else '0'; -- 1001000XXXXX0000
 
-idc_lpm <= '1' when instruction_code_reg = "1001010111001000" else '0'; -- 1001010111001000
+active_operation.is_lpm <= '1' when instruction_code_reg = "1001010111001000" else '0'; -- 1001010111001000
 
-idc_lsr <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100110" else '0'; -- 1001010XXXXX0110
+active_operation.is_lsr <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100110" else '0'; -- 1001010XXXXX0110
 
-idc_mov <= '1' when instruction_code_reg(15 downto 10) = "001011" else '0'; -- 001011XXXXXXXXXX
+active_operation.is_mov <= '1' when instruction_code_reg(15 downto 10) = "001011" else '0'; -- 001011XXXXXXXXXX
 
-idc_mul <= '1' when instruction_code_reg(15 downto 10) = "100111" else '0'; -- 100111XXXXXXXXXX
+active_operation.is_mul <= '1' when instruction_code_reg(15 downto 10) = "100111" else '0'; -- 100111XXXXXXXXXX
 
-idc_neg <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100001" else '0'; -- 1001010XXXXX0001
+active_operation.is_neg <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100001" else '0'; -- 1001010XXXXX0001
 
-idc_nop <= '1' when instruction_code_reg = "0000000000000000" else '0'; -- 0000000000000000
+active_operation.is_nop <= '1' when instruction_code_reg = "0000000000000000" else '0'; -- 0000000000000000
 
-idc_or  <= '1' when instruction_code_reg(15 downto 10) = "001010" else '0'; -- 001010XXXXXXXXXX
+active_operation.is_or  <= '1' when instruction_code_reg(15 downto 10) = "001010" else '0'; -- 001010XXXXXXXXXX
 
-idc_ori <= '1' when instruction_code_reg(15 downto 12) = "0110" else '0'; -- 0110XXXXXXXXXXXX 
+active_operation.is_ori <= '1' when instruction_code_reg(15 downto 12) = "0110" else '0'; -- 0110XXXXXXXXXXXX 
 
-idc_out <= '1' when instruction_code_reg(15 downto 11) = "10111" else '0'; -- 10111XXXXXXXXXXX
+active_operation.is_out <= '1' when instruction_code_reg(15 downto 11) = "10111" else '0'; -- 10111XXXXXXXXXXX
 
-idc_pop <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001111" else '0'; -- 1001000XXXXX1111
+active_operation.is_pop <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010001111" else '0'; -- 1001000XXXXX1111
 
-idc_push<= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011111" else '0'; -- 1001001XXXXX1111
+active_operation.is_push<= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011111" else '0'; -- 1001001XXXXX1111
 
-idc_rcall<= '1' when instruction_code_reg(15 downto 12) = "1101" else '0'; -- 1101XXXXXXXXXXXX
+active_operation.is_rcall<= '1' when instruction_code_reg(15 downto 12) = "1101" else '0'; -- 1101XXXXXXXXXXXX
 
-idc_ret  <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(4 downto 0) = "10010101001000" else '0'; -- 100101010XX01000
+active_operation.is_ret  <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(4 downto 0) = "10010101001000" else '0'; -- 100101010XX01000
 
-idc_reti <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(4 downto 0) = "10010101011000" else '0'; -- 100101010XX11000
+active_operation.is_reti <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(4 downto 0) = "10010101011000" else '0'; -- 100101010XX11000
 
-idc_rjmp <= '1' when instruction_code_reg(15 downto 12) = "1100" else '0'; -- 1100XXXXXXXXXXXX
+active_operation.is_rjmp <= '1' when instruction_code_reg(15 downto 12) = "1100" else '0'; -- 1100XXXXXXXXXXXX
 
-idc_ror  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100111" else '0'; -- 1001010XXXXX0111
+active_operation.is_ror  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100111" else '0'; -- 1001010XXXXX0111
 
-idc_sbc  <= '1' when instruction_code_reg(15 downto 10) = "000010" else '0'; -- 000010XXXXXXXXXX
+active_operation.is_sbc  <= '1' when instruction_code_reg(15 downto 10) = "000010" else '0'; -- 000010XXXXXXXXXX
 
-idc_sbci <= '1' when instruction_code_reg(15 downto 12) = "0100" else '0'; -- 0100XXXXXXXXXXXX
+active_operation.is_sbci <= '1' when instruction_code_reg(15 downto 12) = "0100" else '0'; -- 0100XXXXXXXXXXXX
 
-idc_sbi  <= '1' when instruction_code_reg(15 downto 8) = "10011010" else '0'; -- 10011010XXXXXXXX
+active_operation.is_sbi  <= '1' when instruction_code_reg(15 downto 8) = "10011010" else '0'; -- 10011010XXXXXXXX
 
-idc_sbic <= '1' when instruction_code_reg(15 downto 8) = "10011001" else '0'; -- 10011001XXXXXXXX
+active_operation.is_sbic <= '1' when instruction_code_reg(15 downto 8) = "10011001" else '0'; -- 10011001XXXXXXXX
 
-idc_sbis <= '1' when instruction_code_reg(15 downto 8) = "10011011" else '0'; -- 10011011XXXXXXXX
+active_operation.is_sbis <= '1' when instruction_code_reg(15 downto 8) = "10011011" else '0'; -- 10011011XXXXXXXX
 
-idc_sbiw <= '1' when instruction_code_reg(15 downto 8) = "10010111" else '0'; -- 10010111XXXXXXXX
+active_operation.is_sbiw <= '1' when instruction_code_reg(15 downto 8) = "10010111" else '0'; -- 10010111XXXXXXXX
 
-idc_sbrc <= '1' when instruction_code_reg(15 downto 9) = "1111110" else '0'; -- 1111110XXXXXXXXX
+active_operation.is_sbrc <= '1' when instruction_code_reg(15 downto 9) = "1111110" else '0'; -- 1111110XXXXXXXXX
 
-idc_sbrs <= '1' when instruction_code_reg(15 downto 9) = "1111111" else '0'; -- 1111111XXXXXXXXX
+active_operation.is_sbrs <= '1' when instruction_code_reg(15 downto 9) = "1111111" else '0'; -- 1111111XXXXXXXXX
 
-idc_sleep<= '1' when instruction_code_reg(15 downto 5)&instruction_code_reg(3 downto 0) = "100101011001000" else '0'; -- 10010101100X1000
+active_operation.is_sleep<= '1' when instruction_code_reg(15 downto 5)&instruction_code_reg(3 downto 0) = "100101011001000" else '0'; -- 10010101100X1000
 
 
 -- ST,STD
-idc_st_x <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011100" or 
+active_operation.is_st_x <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011100" or 
                      instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011101" or 
                      instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010011110" else '0';
 	
-idc_st_y <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010011001" or 
+active_operation.is_st_y <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010011001" or 
 					  instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010011010") else '0'; 
 
-idc_std_y<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10011" else '0'; -- 10X0XX1XXXXX1XXX    
+active_operation.is_std_y<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10011" else '0'; -- 10X0XX1XXXXX1XXX    
 
-idc_st_z <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010010001" or 
+active_operation.is_st_z <= '1' when (instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010010001" or 
 					  instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0)="10010010010") else '0'; 
 
-idc_std_z<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10010" else '0'; -- 10X0XX1XXXXX0XXX 
+active_operation.is_std_z<= '1' when instruction_code_reg(15 downto 14)&instruction_code_reg(12)&instruction_code_reg(9)&instruction_code_reg(3) = "10010" else '0'; -- 10X0XX1XXXXX0XXX 
 -- ######
 
-idc_sts  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010010000" else '0'; -- 1001001XXXXX0000
+active_operation.is_sts  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010010000" else '0'; -- 1001001XXXXX0000
 
-idc_sub  <= '1' when instruction_code_reg(15 downto 10) = "000110" else '0'; -- 000110XXXXXXXXXX
+active_operation.is_sub  <= '1' when instruction_code_reg(15 downto 10) = "000110" else '0'; -- 000110XXXXXXXXXX
 
-idc_subi <= '1' when instruction_code_reg(15 downto 12) = "0101" else '0'; -- 0101XXXXXXXXXXXX
+active_operation.is_subi <= '1' when instruction_code_reg(15 downto 12) = "0101" else '0'; -- 0101XXXXXXXXXXXX
 
-idc_swap <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100010" else '0'; -- 1001010XXXXX0010
+active_operation.is_swap <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100010" else '0'; -- 1001010XXXXX0010
 
-idc_wdr  <= '1' when instruction_code_reg(15 downto 5)&instruction_code_reg(3 downto 0) = "100101011011000" else '0'; -- 10010101101X1000
+active_operation.is_wdr  <= '1' when instruction_code_reg(15 downto 5)&instruction_code_reg(3 downto 0) = "100101011011000" else '0'; -- 10010101101X1000
 
 -- ADDITIONAL SIGNALS
-idc_psinc <= '1' when (instruction_code_reg(1 downto 0) = "01" and 
- (idc_st_x or idc_st_y or idc_st_z or idc_ld_x or idc_ld_y or idc_ld_z)='1') else '0';  -- POST INCREMENT FOR LD/ST INSTRUCTIONS
+is_post_increment_operation <= '1' when (instruction_code_reg(1 downto 0) = "01" and 
+ (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z)='1') else '0';  -- POST INCREMENT FOR LD/ST INSTRUCTIONS
 
-idc_prdec <= '1' when (instruction_code_reg(1 downto 0)	= "10" and
- (idc_st_x or idc_st_y or idc_st_z or idc_ld_x or idc_ld_y or idc_ld_z)='1') else '0';  -- PRE DECREMENT FOR LD/ST INSTRUCTIONS 
+is_pre_decrement_operation <= '1' when (instruction_code_reg(1 downto 0)	= "10" and
+ (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z)='1') else '0';  -- PRE DECREMENT FOR LD/ST INSTRUCTIONS 
 				
 	
 -- ##########################################################################################################
 
 -- WRITE ENABLE SIGNALS FOR ramadr_reg
-ramadr_reg_en <= idc_ld_x or idc_ld_y or idc_ldd_y or idc_ld_z or idc_ldd_z or idc_lds or    -- LD/LDD/LDS(two cycle execution) 
-                 idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z or idc_sts or    -- ST/STS/STS(two cycle execution)
-				 idc_push or idc_pop or
-				 idc_rcall or (rcall_st1 and not cpuwait) or idc_icall or (icall_st1 and not cpuwait) or -- RCALL/ICALL
+ramadr_reg_en <= active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z or active_operation.is_lds or    -- LD/LDD/LDS(two cycle execution) 
+                 active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z or active_operation.is_sts or    -- ST/STS/STS(two cycle execution)
+				 active_operation.is_push or active_operation.is_pop or
+				 active_operation.is_rcall or (rcall_st1 and not cpuwait) or active_operation.is_icall or (icall_st1 and not cpuwait) or -- RCALL/ICALL
 				 call_st1 or  (call_st2 and not cpuwait) or irq_st1 or (irq_st2 and not cpuwait) or      -- CALL/IRQ
-				 idc_ret or (ret_st1 and not cpuwait ) or idc_reti or (reti_st1 and not cpuwait);		 -- RET/RETI  -- ??
+				 active_operation.is_ret or (ret_st1 and not cpuwait ) or active_operation.is_reti or (reti_st1 and not cpuwait);		 -- RET/RETI  -- ??
 
 
 -- RAMADR MUX
 ramadr_reg_in <= sph_out&spl_out when 
-  (idc_rcall or (rcall_st1 and not cpuwait)or idc_icall or (icall_st1 and not cpuwait)or  -- RCALL/ICALL
+  (active_operation.is_rcall or (rcall_st1 and not cpuwait)or active_operation.is_icall or (icall_st1 and not cpuwait)or  -- RCALL/ICALL
    call_st1  or (call_st2 and not cpuwait) or irq_st1   or (irq_st2 and not cpuwait)  or  -- CALL/IRQ
-   idc_push )='1' else 	                                                                  -- PUSH
-   (sph_out&spl_out)+1 when (idc_ret or (ret_st1 and not cpuwait)  or idc_reti  or (reti_st1 and not cpuwait) or idc_pop)='1' else  -- RET/RETI/POP
-   inst when (idc_lds or idc_sts) ='1' else     -- LDS/STS (two cycle execution)	
-   reg_h_out when (idc_ld_x or idc_ld_y or idc_ld_z or idc_st_x or idc_st_y or idc_st_z)='1' else  -- LD/ST	  
+   active_operation.is_push )='1' else 	                                                                  -- PUSH
+   (sph_out&spl_out)+1 when (active_operation.is_ret or (ret_st1 and not cpuwait)  or active_operation.is_reti  or (reti_st1 and not cpuwait) or active_operation.is_pop)='1' else  -- RET/RETI/POP
+   inst when (active_operation.is_lds or active_operation.is_sts) ='1' else     -- LDS/STS (two cycle execution)	
+   reg_h_out when (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z or active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z)='1' else  -- LD/ST	  
    (reg_h_out + ("000000000"&dex_adr_disp));                                                       -- LDD/STD  
 	  
 								
@@ -792,20 +664,20 @@ end process;
 -- REGRE/REGWE LOGIC (5 BIT ADDSRESS BUS (INTERNAL ONLY) 32 LOCATIONS (R0-R31))
 
 -- WRITE ENABLE FOR Rd REGISTERS 
-alu_reg_wr <= idc_adc or idc_add or idc_adiw or adiw_st or idc_sub or idc_subi or idc_sbc or idc_sbci or
-              idc_sbiw or  sbiw_st or idc_and or idc_andi or idc_or or idc_ori or idc_eor or idc_com or
-   			  idc_neg or idc_inc or idc_dec or idc_lsr or idc_ror or idc_asr or idc_swap;
+alu_reg_wr <= active_operation.is_adc or active_operation.is_add or active_operation.is_adiw or adiw_st or active_operation.is_sub or active_operation.is_subi or active_operation.is_sbc or active_operation.is_sbci or
+              active_operation.is_sbiw or  sbiw_st or active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or
+   			  active_operation.is_neg or active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or active_operation.is_swap;
 			  
 
-reg_rd_wr <= idc_in or alu_reg_wr or idc_bld or             -- ALU INSTRUCTIONS + IN/BLD INSRTRUCTION                
+reg_rd_wr <= active_operation.is_in or alu_reg_wr or active_operation.is_bld or             -- ALU INSTRUCTIONS + IN/BLD INSRTRUCTION                
  (pop_st or ld_st or lds_st)or			                    -- POP/LD/LDD/LDS INSTRUCTIONS
  ((st_st or sts_st) and reg_file_adr_space)or              -- ST/STD/STS INSTRUCTION 	      
-  lpm_st2 or idc_ldi or idc_mov;                            -- LPM/LDI/MOV INSTRUCTION
+  lpm_st2 or active_operation.is_ldi or active_operation.is_mov;                            -- LPM/LDI/MOV INSTRUCTION
  
   
-  reg_rd_adr <= '1'&dex_adrreg_d(3 downto 0) when (idc_subi or idc_sbci or idc_andi or idc_ori or idc_cpi or idc_ldi)='1' else
+  reg_rd_adr <= '1'&dex_adrreg_d(3 downto 0) when (active_operation.is_subi or active_operation.is_sbci or active_operation.is_andi or active_operation.is_ori or active_operation.is_cpi or active_operation.is_ldi)='1' else
 			   "00000" when lpm_st2='1' else 
-               adiw_sbiw_encoder_out     when (idc_adiw or idc_sbiw)='1' else
+               adiw_sbiw_encoder_out     when (active_operation.is_adiw or active_operation.is_sbiw)='1' else
                adiw_sbiw_encoder_mux_out when (adiw_st or sbiw_st)='1' else
 			   dex_adrreg_d_latched      when (((st_st or sts_st) and not reg_file_adr_space) or ld_st or lds_st or pop_st)='1' else
                ramadr_int(4 downto 0)    when ((st_st or sts_st) and reg_file_adr_space)='1'else --!!??
@@ -816,25 +688,25 @@ reg_rr_adr <= ramadr_int(4 downto 0) when ((ld_st or lds_st) and reg_file_adr_sp
 	          dex_adrreg_r;		   
   
 -- MULTIPLEXER FOR REGISTER FILE Rd INPUT
-reg_rd_in <= dbusin when (idc_in or ((lds_st or ld_st)and not reg_file_adr_space) or pop_st)='1' else -- FROM INPUT DATA BUS
+reg_rd_in <= dbusin when (active_operation.is_in or ((lds_st or ld_st)and not reg_file_adr_space) or pop_st)='1' else -- FROM INPUT DATA BUS
 			 reg_rr_out when ((lds_st or ld_st)  and reg_file_adr_space)='1' else
              gp_reg_tmp when ((st_st or sts_st)  and reg_file_adr_space)='1' else -- ST/STD/STS &  ADDRESS FROM 0 TO 31 (REGISTER FILE)
-			 bld_op_out when (idc_bld='1')else                                     -- FROM BIT PROCESSOR BLD COMMAND
-             reg_rr_out when (idc_mov='1')else                                     -- FOR MOV INSTRUCTION 
+			 bld_op_out when (active_operation.is_bld='1')else                                     -- FROM BIT PROCESSOR BLD COMMAND
+             reg_rr_out when (active_operation.is_mov='1')else                                     -- FOR MOV INSTRUCTION 
 			 instruction_reg(15 downto 8) when (lpm_st2='1' and reg_z_out(0)='1') else -- LPM/ELPM
 			 instruction_reg(7 downto 0) when  (lpm_st2='1' and reg_z_out(0)='0') else -- LPM/ELPM
-             dex_dat8_immed when idc_ldi='1' else
+             dex_dat8_immed when active_operation.is_ldi='1' else
 			 alu_data_out;                                               -- FROM ALU DATA OUT
 
 -- IORE/IOWE LOGIC (6 BIT ADDRESS adr[5..0] FOR I/O PORTS(64 LOCATIONS))
-iore_int <= idc_in or idc_sbi or idc_cbi or idc_sbic or idc_sbis or ((ld_st or lds_st) and io_file_adr_space);   -- IN/SBI/CBI 
-iowe_int <= '1' when ((idc_out or sbi_st or cbi_st) or 
+iore_int <= active_operation.is_in or active_operation.is_sbi or active_operation.is_cbi or active_operation.is_sbic or active_operation.is_sbis or ((ld_st or lds_st) and io_file_adr_space);   -- IN/SBI/CBI 
+iowe_int <= '1' when ((active_operation.is_out or sbi_st or cbi_st) or 
                      ((st_st or sts_st) and io_file_adr_space))='1' else '0'; -- OUT/SBI/CBI + !! ST/STS/STD
 
 
 -- adr[5..0] BUS MULTIPLEXER
-adr_int <= "0000000000" & dex_adr6port when (idc_in or idc_out) = '1' else                          -- IN/OUT INSTRUCTIONS  
-           "0000000000" &'0'&dex_adr5port when (idc_cbi or idc_sbi or idc_sbic or idc_sbis) ='1'    else  -- CBI/SBI (READ PHASE) + SBIS/SBIC
+adr_int <= "0000000000" & dex_adr6port when (active_operation.is_in or active_operation.is_out) = '1' else                          -- IN/OUT INSTRUCTIONS  
+           "0000000000" &'0'&dex_adr5port when (active_operation.is_cbi or active_operation.is_sbi or active_operation.is_sbic or active_operation.is_sbis) ='1'    else  -- CBI/SBI (READ PHASE) + SBIS/SBIC
 		       "0000000000" &'0'&cbi_sbi_io_adr_tmp when (cbi_st or sbi_st)='1' else	-- CBI/SBI (WRITE PHASE)
 		        ramadr_int-x"20"; --(6)&ramadr_int(4 downto 0);                                                   -- LD/LDS/LDD/ST/STS/STD
 
@@ -855,11 +727,11 @@ elsif (cp2='1' and cp2'event) then -- Clock
 	   ramadr_reg_in(15 downto 5)/=const_ram_to_io_b and     
 	   ramadr_reg_in(15 downto 12)/=const_ram_to_io_c and     
        ramadr_reg_in(15 downto 5)/=const_ram_to_reg  and  
-      (idc_ld_x or idc_ld_y or idc_ldd_y or idc_ld_z or idc_ldd_z or  -- LD/LDD instruction	
-	   idc_lds or                                           -- LDS instruction(two cycle execution)
-	   idc_pop or                                                     -- POP instruction
-       idc_ret or 	                                                -- RET instruction 
-	   idc_reti)='1') 												    -- RETI instruction 
+      (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z or  -- LD/LDD instruction	
+	   active_operation.is_lds or                                           -- LDS instruction(two cycle execution)
+	   active_operation.is_pop or                                                     -- POP instruction
+       active_operation.is_ret or 	                                                -- RET instruction 
+	   active_operation.is_reti)='1') 												    -- RETI instruction 
 	   then ramre_int <='1';
     end if;
    when '1' =>	
@@ -891,11 +763,11 @@ elsif (cp2='1' and cp2'event) then -- Clock
 	   ramadr_reg_in(15 downto 5)/=const_ram_to_io_b and     
 	   ramadr_reg_in(15 downto 12)/=const_ram_to_io_c and     
        ramadr_reg_in(15 downto 5)/=const_ram_to_reg  and  
-      (idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z or  -- ST/STD instruction	
-	   idc_sts or                                           -- STS instruction (two cycle execution)	
-	   idc_push or                                                    -- PUSH instruction
-	   idc_rcall or													  -- RCALL instruction
-	   idc_icall or													  -- ICALL instruction
+      (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z or  -- ST/STD instruction	
+	   active_operation.is_sts or                                           -- STS instruction (two cycle execution)	
+	   active_operation.is_push or                                                    -- PUSH instruction
+	   active_operation.is_rcall or													  -- RCALL instruction
+	   active_operation.is_icall or													  -- ICALL instruction
 	   call_st1 or                                                    -- CALL instruction
 	   irq_st1)='1')                                                  -- Interrupt  
 	  then ramwe_int <='1';
@@ -912,23 +784,23 @@ end process;
 
 -- DBUSOUT MULTIPLEXER
 dbusout_mux_logic: for i in dbusout_int'range generate
-dbusout_int(i)<= (reg_rd_out(i) and (idc_push or idc_sts or
-                 (idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z)))or      -- PUSH/ST/STD/STS INSTRUCTIONS
+dbusout_int(i)<= (reg_rd_out(i) and (active_operation.is_push or active_operation.is_sts or
+                 (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z)))or      -- PUSH/ST/STD/STS INSTRUCTIONS
 				 (gp_reg_tmp(i) and (st_st or sts_st))or                            -- NEW
 				 (bitpr_io_out(i) and (cbi_st or sbi_st))or                          -- CBI/SBI  INSTRUCTIONS
-                 (program_counter(i)         and (idc_rcall or idc_icall or call_st1))or                        -- LOW  PART OF PC
+                 (program_counter(i)         and (active_operation.is_rcall or active_operation.is_icall or call_st1))or                        -- LOW  PART OF PC
                  (program_counter_high_fr(i) and (rcall_st1 or icall_st1 or call_st2))or                        -- HIGH PART OF PC
                  (pc_for_interrupt(i) and irq_st1) or
 				 (pc_for_interrupt(i+8) and irq_st2) or
-				 (reg_rd_out(i) and  idc_out); -- OUT
+				 (reg_rd_out(i) and  active_operation.is_out); -- OUT
 end generate;
 
 
 -- ALU CONNECTION
 
 -- ALU Rr INPUT MUX
-alu_data_r_in <= dex_dat8_immed       when (idc_subi or idc_sbci or idc_andi or idc_ori or idc_cpi)='1' else
-                 "00"&dex_dat6_immed  when (idc_adiw or idc_sbiw) ='1' else
+alu_data_r_in <= dex_dat8_immed       when (active_operation.is_subi or active_operation.is_sbci or active_operation.is_andi or active_operation.is_ori or active_operation.is_cpi)='1' else
+                 "00"&dex_dat6_immed  when (active_operation.is_adiw or active_operation.is_sbiw) ='1' else
                  "00000000"           when (adiw_st or sbiw_st) ='1' else
                  reg_rr_out;
 
@@ -940,8 +812,8 @@ if (ireset='0') then
 gp_reg_tmp <= (others=>'0');
 elsif (cp2='1' and cp2'event) then
  if (cp2en='1') then 							  -- Clock enable
-  -- if ((idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z) or sts_st1)='1' then  -- CLOCK ENABLE
-  if ((idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z) or idc_sts)='1' then  -- CLOCK ENABLE
+  -- if ((active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z) or sts_st1)='1' then  -- CLOCK ENABLE
+  if ((active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z) or active_operation.is_sts)='1' then  -- CLOCK ENABLE
      gp_reg_tmp <= reg_rd_out;
   end if;
  end if;
@@ -960,7 +832,7 @@ if ireset='0' then                         -- RESET
 program_counter_high_fr <=(others => '0');
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  if (idc_rcall or idc_icall or call_st1 or irq_st1) ='1' then   
+  if (active_operation.is_rcall or active_operation.is_icall or call_st1 or irq_st1) ='1' then   
    program_counter_high_fr <= program_counter(15 downto 8);       -- STORE HIGH BYTE OF THE PROGRAMM COUNTER FOR RCALL/ICALL/CALL INSTRUCTIONS AND INTERRUPTS   
   end if;
  end if;
@@ -974,14 +846,14 @@ if ireset='0' then                         -- RESET
 program_counter_tmp<=(others => '0');
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  if (idc_lpm or idc_elpm) ='1' then       
+  if (active_operation.is_lpm or active_operation.is_elpm) ='1' then       
    program_counter_tmp <= program_counter;               
   end if;
  end if; 
 end if;
 end process;
 
-pa15_pm <= rampz_out(0) and idc_elpm; -- '0' WHEN LPM INSTRUCTIONS  RAMPZ(0) WHEN ELPM INSTRUCTION
+pa15_pm <= rampz_out(0) and active_operation.is_elpm; -- '0' WHEN LPM INSTRUCTIONS  RAMPZ(0) WHEN ELPM INSTRUCTION
 
 -- OFFSET FOR BRBC/BRBS INSTRUCTIONS +63/-64
 offset_brbx <= "0000000000"&dex_brxx_offset(5 downto 0) when (dex_brxx_offset(6)='0') else -- +
@@ -993,10 +865,10 @@ offset_rxx <= "00000"&dex_adr12mem_s(10 downto 0) when (dex_adr12mem_s(11)='0') 
 
 program_counter <= pc_high&pc_low;
 
-program_counter_in <= program_counter + offset_brbx when ((idc_brbc or idc_brbs) and  bit_test_op_out) ='1'else  -- BRBC/BRBS                  
-                      program_counter + offset_rxx when (idc_rjmp or idc_rcall)='1'else     -- RJMP/RCALL
-                      reg_z_out when (idc_ijmp or idc_icall)='1'else                        -- IJMP/ICALL
-                      pa15_pm&reg_z_out(15 downto 1) when (idc_lpm or idc_elpm) ='1'else    -- LPM/ELPM
+program_counter_in <= program_counter + offset_brbx when ((active_operation.is_brbc or active_operation.is_brbs) and  bit_test_op_out) ='1'else  -- BRBC/BRBS                  
+                      program_counter + offset_rxx when (active_operation.is_rjmp or active_operation.is_rcall)='1'else     -- RJMP/RCALL
+                      reg_z_out when (active_operation.is_ijmp or active_operation.is_icall)='1'else                        -- IJMP/ICALL
+                      pa15_pm&reg_z_out(15 downto 1) when (active_operation.is_lpm or active_operation.is_elpm) ='1'else    -- LPM/ELPM
                       instruction_reg  when (jmp_st1 or call_st1)='1'else                    -- JMP/CALL
                       "0000000000"&irqackad_int&'0' when irq_st1 ='1' else                 -- INTERRUPT      
                       dbusin&"00000000"  when (ret_st1 or reti_st1)='1' else                 -- RET/RETI -> PC HIGH BYTE                  
@@ -1006,22 +878,22 @@ program_counter_in <= program_counter + offset_brbx when ((idc_brbc or idc_brbs)
 
 						  
 
-pc_low_en  <= not (idc_ld_x or idc_ld_y or idc_ld_z or idc_ldd_y or idc_ldd_z or
-	               idc_st_x or idc_st_y or idc_st_z or idc_std_y or idc_std_z or
+pc_low_en  <= not (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z or active_operation.is_ldd_y or active_operation.is_ldd_z or
+	               active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_std_y or active_operation.is_std_z or
 				   ((sts_st or lds_st) and cpuwait)or 
-				   idc_adiw or idc_sbiw or
-				   idc_push or idc_pop or
-				   idc_cbi or idc_sbi or
+				   active_operation.is_adiw or active_operation.is_sbiw or
+				   active_operation.is_push or active_operation.is_pop or
+				   active_operation.is_cbi or active_operation.is_sbi or
 				   rcall_st1 or icall_st1 or call_st2 or irq_st2 or cpuwait or
 				   ret_st1 or reti_st1); 
 
 
-pc_high_en <= not (idc_ld_x or idc_ld_y or idc_ld_z or idc_ldd_y or idc_ldd_z or
-	               idc_st_x or idc_st_y or idc_st_z or idc_std_y or idc_std_z or
+pc_high_en <= not (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z or active_operation.is_ldd_y or active_operation.is_ldd_z or
+	               active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_std_y or active_operation.is_std_z or
 				   ((sts_st or lds_st) and cpuwait) or 
-				   idc_adiw or idc_sbiw or
-				   idc_push or idc_pop or
-				   idc_cbi or idc_sbi or
+				   active_operation.is_adiw or active_operation.is_sbiw or
+				   active_operation.is_push or active_operation.is_pop or
+				   active_operation.is_cbi or active_operation.is_sbi or
 				   rcall_st1 or icall_st1 or call_st2 or irq_st2 or cpuwait or
 				   ret_st2 or reti_st2);
 				   
@@ -1071,8 +943,8 @@ end process;
 
 -- STATE MACHINES
 
-skip_inst_start <= ((idc_sbrc or idc_sbrs or idc_sbic or idc_sbis) and bit_test_op_out)or
-                   (idc_cpse and alu_flags_out.z);
+skip_inst_start <= ((active_operation.is_sbrc or active_operation.is_sbrs or active_operation.is_sbic or active_operation.is_sbis) and bit_test_op_out)or
+                   (active_operation.is_cpse and alu_flags_out.z);
 
 skip_instruction_sm:process(cp2,ireset)
 begin
@@ -1099,8 +971,8 @@ adiw_st <= '0';
 sbiw_st <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 					 -- Clock enable
-  adiw_st <= not adiw_st and idc_adiw;
-  sbiw_st <= not sbiw_st and idc_sbiw;
+  adiw_st <= not adiw_st and active_operation.is_adiw;
+  sbiw_st <= not sbiw_st and active_operation.is_sbiw;
  end if;
 end if;
 end process;
@@ -1114,8 +986,8 @@ lpm_st1 <= '0';
 lpm_st2 <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  nlpm_st0 <= (not nlpm_st0 and (idc_lpm or idc_elpm)) or (nlpm_st0 and not lpm_st2);
-  lpm_st1  <= (not lpm_st1 and not nlpm_st0 and (idc_lpm or idc_elpm)); -- ?? 
+  nlpm_st0 <= (not nlpm_st0 and (active_operation.is_lpm or active_operation.is_elpm)) or (nlpm_st0 and not lpm_st2);
+  lpm_st1  <= (not lpm_st1 and not nlpm_st0 and (active_operation.is_lpm or active_operation.is_elpm)); -- ?? 
   lpm_st2  <=  not lpm_st2 and lpm_st1;
  end if;
 end if;
@@ -1128,7 +1000,7 @@ if ireset='0' then                       -- RESET
  lds_st <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable	
-  lds_st  <= (not lds_st and idc_lds) or (lds_st and cpuwait);
+  lds_st  <= (not lds_st and active_operation.is_lds) or (lds_st and cpuwait);
  end if;
 end if;
 end process;
@@ -1140,7 +1012,7 @@ if ireset='0' then                       -- RESET
  sts_st <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  sts_st  <= (not sts_st and idc_sts) or (sts_st and cpuwait);
+  sts_st  <= (not sts_st and active_operation.is_sts) or (sts_st and cpuwait);
  end if;
 end if;
 end process;
@@ -1153,8 +1025,8 @@ jmp_st1 <= '0';
 jmp_st2 <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  njmp_st0 <= (not njmp_st0 and idc_jmp) or (njmp_st0 and not jmp_st2);
-  jmp_st1  <= not jmp_st1 and not njmp_st0 and idc_jmp; -- ?? 
+  njmp_st0 <= (not njmp_st0 and active_operation.is_jmp) or (njmp_st0 and not jmp_st2);
+  jmp_st1  <= not jmp_st1 and not njmp_st0 and active_operation.is_jmp; -- ?? 
   jmp_st2  <= not jmp_st2 and jmp_st1;
  end if;
 end if;
@@ -1168,8 +1040,8 @@ rcall_st1 <= '0';
 rcall_st2 <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable	
-  nrcall_st0 <= (not nrcall_st0 and idc_rcall) or (nrcall_st0 and not (rcall_st2 and not cpuwait));
-  rcall_st1  <= (not rcall_st1 and not nrcall_st0 and idc_rcall) or (rcall_st1 and cpuwait);
+  nrcall_st0 <= (not nrcall_st0 and active_operation.is_rcall) or (nrcall_st0 and not (rcall_st2 and not cpuwait));
+  rcall_st1  <= (not rcall_st1 and not nrcall_st0 and active_operation.is_rcall) or (rcall_st1 and cpuwait);
   rcall_st2  <= (not rcall_st2 and rcall_st1 and not cpuwait) or (rcall_st2 and cpuwait);
  end if;
 end if;
@@ -1183,8 +1055,8 @@ icall_st1 <= '0';
 icall_st2 <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable	
-  nicall_st0 <= (not nicall_st0 and idc_icall) or (nicall_st0 and not (icall_st2 and not cpuwait));
-  icall_st1  <= (not icall_st1 and not nicall_st0 and idc_icall) or (icall_st1 and cpuwait);
+  nicall_st0 <= (not nicall_st0 and active_operation.is_icall) or (nicall_st0 and not (icall_st2 and not cpuwait));
+  icall_st1  <= (not icall_st1 and not nicall_st0 and active_operation.is_icall) or (icall_st1 and cpuwait);
   icall_st2  <= (not icall_st2 and icall_st1 and not cpuwait) or (icall_st2 and cpuwait);
  end if;
 end if;
@@ -1199,8 +1071,8 @@ call_st2 <= '0';
 call_st3  <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  ncall_st0 <= (not ncall_st0 and idc_call) or (ncall_st0 and not( call_st3 and not cpuwait));
-  call_st1  <= not call_st1 and not ncall_st0 and idc_call;
+  ncall_st0 <= (not ncall_st0 and active_operation.is_call) or (ncall_st0 and not( call_st3 and not cpuwait));
+  call_st1  <= not call_st1 and not ncall_st0 and active_operation.is_call;
   call_st2  <= (not call_st2 and call_st1) or (call_st2 and cpuwait);
   call_st3  <= (not call_st3 and call_st2 and not cpuwait) or (call_st3 and cpuwait);
  end if;
@@ -1216,8 +1088,8 @@ ret_st2 <= '0';
 ret_st3  <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  nret_st0 <= (not nret_st0 and idc_ret) or (nret_st0 and not ret_st3);
-  ret_st1  <= (not ret_st1 and not nret_st0 and idc_ret) or (ret_st1 and cpuwait);
+  nret_st0 <= (not nret_st0 and active_operation.is_ret) or (nret_st0 and not ret_st3);
+  ret_st1  <= (not ret_st1 and not nret_st0 and active_operation.is_ret) or (ret_st1 and cpuwait);
   ret_st2  <= (not ret_st2 and ret_st1 and not cpuwait) or (ret_st2 and cpuwait) ;
   ret_st3  <= not ret_st3 and ret_st2 and not cpuwait; 
  end if;
@@ -1233,8 +1105,8 @@ reti_st2 <= '0';
 reti_st3  <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  nreti_st0 <= (not nreti_st0 and idc_reti) or (nreti_st0 and not reti_st3);
-  reti_st1  <= (not reti_st1 and not nreti_st0 and idc_reti) or (reti_st1 and cpuwait);
+  nreti_st0 <= (not nreti_st0 and active_operation.is_reti) or (nreti_st0 and not reti_st3);
+  reti_st1  <= (not reti_st1 and not nreti_st0 and active_operation.is_reti) or (reti_st1 and cpuwait);
   reti_st2  <= (not reti_st2 and reti_st1 and not cpuwait) or (reti_st2 and cpuwait) ;
   reti_st3  <= not reti_st3 and reti_st2 and not cpuwait; 
  end if;
@@ -1275,29 +1147,29 @@ irq_vector_adr(5 downto 1) <= "00001" when irqlines(0)='1'  else -- 0x0002
 							  "00000";	  
 
 -- MULTI CYCLE INSTRUCTION FLAG FOR IRQ
-cpu_busy <= idc_adiw or idc_sbiw or idc_cbi or idc_sbi or
-            idc_rjmp or idc_ijmp or
-			idc_jmp or jmp_st1 or
---			idc_brbs or idc_brbc or -- Old variant
-            ((idc_brbc or idc_brbs) and  bit_test_op_out) or
-			idc_lpm or lpm_st1 or
+cpu_busy <= active_operation.is_adiw or active_operation.is_sbiw or active_operation.is_cbi or active_operation.is_sbi or
+            active_operation.is_rjmp or active_operation.is_ijmp or
+			active_operation.is_jmp or jmp_st1 or
+--			active_operation.is_brbs or active_operation.is_brbc or -- Old variant
+            ((active_operation.is_brbc or active_operation.is_brbs) and  bit_test_op_out) or
+			active_operation.is_lpm or lpm_st1 or
 			skip_inst_start or (skip_inst_st1 and two_word_inst) or
-			idc_ld_x or idc_ld_y or idc_ldd_y or idc_ld_z or idc_ldd_z or (ld_st and cpuwait) or
-			idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z or (st_st and cpuwait) or
-			idc_lds or (lds_st and cpuwait) or 
-			idc_sts or (sts_st and cpuwait) or
-			idc_rcall or rcall_st1 or (rcall_st2 and cpuwait) or           -- RCALL
-			idc_icall or icall_st1 or (icall_st2 and cpuwait) or		   -- ICALL
-			idc_call or call_st1 or call_st2 or (call_st3 and cpuwait) or  -- CALL
-			idc_push or (push_st and cpuwait) or                           -- PUSH (added 14.07.05)
-			idc_pop or (pop_st and cpuwait) or                             -- POP  (added 14.07.05)
-		    (idc_bclr and sreg_bop_wr_en(7)) or                 -- ??? CLI
+			active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z or (ld_st and cpuwait) or
+			active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z or (st_st and cpuwait) or
+			active_operation.is_lds or (lds_st and cpuwait) or 
+			active_operation.is_sts or (sts_st and cpuwait) or
+			active_operation.is_rcall or rcall_st1 or (rcall_st2 and cpuwait) or           -- RCALL
+			active_operation.is_icall or icall_st1 or (icall_st2 and cpuwait) or		   -- ICALL
+			active_operation.is_call or call_st1 or call_st2 or (call_st3 and cpuwait) or  -- CALL
+			active_operation.is_push or (push_st and cpuwait) or                           -- PUSH (added 14.07.05)
+			active_operation.is_pop or (pop_st and cpuwait) or                             -- POP  (added 14.07.05)
+		    (active_operation.is_bclr and sreg_bop_wr_en(7)) or                 -- ??? CLI
 		    (iowe_int and sreg_adr_eq and not dbusout_int(7))or -- ??? Writing '0' to I flag (OUT/STD/ST/STD)
 			nirq_st0 or
---			idc_ret  or nret_st0 or                             -- Old variant 
-			idc_ret or ret_st1 or ret_st2 or
---			idc_reti or nreti_st0;                              -- At least one instruction must be executed after RETI and before the new interrupt.
-			idc_reti or reti_st1 or reti_st2;
+--			active_operation.is_ret  or nret_st0 or                             -- Old variant 
+			active_operation.is_ret or ret_st1 or ret_st2 or
+--			active_operation.is_reti or nreti_st0;                              -- At least one instruction must be executed after RETI and before the new interrupt.
+			active_operation.is_reti or reti_st1 or reti_st2;
 			
 sreg_adr_eq <= '1' when adr_int = SREG_Address else '0';			
 
@@ -1357,11 +1229,11 @@ pop_st <= '0';
 brxx_st <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  rjmp_st <= idc_rjmp;    -- ??
-  ijmp_st <= idc_ijmp;
-  push_st <= (not push_st and idc_push) or (push_st and cpuwait);
-  pop_st  <= (not pop_st  and idc_pop) or (pop_st and cpuwait);
-  brxx_st <= not brxx_st and (idc_brbc or idc_brbs) and bit_test_op_out;
+  rjmp_st <= active_operation.is_rjmp;    -- ??
+  ijmp_st <= active_operation.is_ijmp;
+  push_st <= (not push_st and active_operation.is_push) or (push_st and cpuwait);
+  pop_st  <= (not pop_st  and active_operation.is_pop) or (pop_st and cpuwait);
+  brxx_st <= not brxx_st and (active_operation.is_brbc or active_operation.is_brbs) and bit_test_op_out;
  end if;
 end if;
 end process;
@@ -1374,8 +1246,8 @@ ld_st <= '0';
 st_st <= '0';
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable	
-  ld_st <= (not ld_st and (idc_ld_x or idc_ld_y or idc_ldd_y or idc_ld_z or idc_ldd_z)) or (ld_st and cpuwait);
-  st_st <= (not st_st and (idc_st_x or idc_st_y or idc_std_y or idc_st_z or idc_std_z)) or (st_st and cpuwait);
+  ld_st <= (not ld_st and (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z)) or (ld_st and cpuwait);
+  st_st <= (not st_st and (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z)) or (st_st and cpuwait);
  end if;
 end if;
 end process;
@@ -1390,8 +1262,8 @@ cbi_sbi_io_adr_tmp  <= (others => '0');
 cbi_sbi_bit_num_tmp	<= (others => '0');
 elsif (cp2='1' and cp2'event) then       -- CLOCK
  if (cp2en='1') then 							  -- Clock enable
-  sbi_st <= not sbi_st and idc_sbi;
-  cbi_st <= not cbi_st and idc_cbi;
+  sbi_st <= not sbi_st and active_operation.is_sbi;
+  cbi_st <= not cbi_st and active_operation.is_cbi;
   cbi_sbi_io_adr_tmp <= dex_adr5port;
   cbi_sbi_bit_num_tmp <= dex_bitop_bitnum;
  end if;
@@ -1403,49 +1275,49 @@ end process;
 -- SREG FLAGS WRITE ENABLE LOGIC
 
 bclr_bset_op_en_logic:for i in sreg_bop_wr_en'range generate
-sreg_bop_wr_en(i) <= '1' when (dex_bitnum_sreg=i and (idc_bclr or idc_bset)='1') else '0';
+sreg_bop_wr_en(i) <= '1' when (dex_bitnum_sreg=i and (active_operation.is_bclr or active_operation.is_bset)='1') else '0';
 end generate;
 
-sreg_c_wr_en <= idc_add or idc_adc or (idc_adiw or adiw_st) or idc_sub  or idc_subi or 
-                idc_sbc or idc_sbci or (idc_sbiw or sbiw_st) or idc_com or idc_neg or
-				idc_cp or idc_cpc or idc_cpi or
-                idc_lsr or idc_ror or idc_asr or sreg_bop_wr_en(0);
+sreg_c_wr_en <= active_operation.is_add or active_operation.is_adc or (active_operation.is_adiw or adiw_st) or active_operation.is_sub  or active_operation.is_subi or 
+                active_operation.is_sbc or active_operation.is_sbci or (active_operation.is_sbiw or sbiw_st) or active_operation.is_com or active_operation.is_neg or
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
+                active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(0);
 
-sreg_z_wr_en <= idc_add or idc_adc or (idc_adiw or adiw_st) or idc_sub  or idc_subi or 
-                idc_sbc or idc_sbci or (idc_sbiw or sbiw_st) or
-				idc_cp or idc_cpc or idc_cpi or
-                idc_and or idc_andi or idc_or or idc_ori or idc_eor or idc_com or idc_neg or
-                idc_inc or idc_dec or idc_lsr or idc_ror or idc_asr or sreg_bop_wr_en(1);
+sreg_z_wr_en <= active_operation.is_add or active_operation.is_adc or (active_operation.is_adiw or adiw_st) or active_operation.is_sub  or active_operation.is_subi or 
+                active_operation.is_sbc or active_operation.is_sbci or (active_operation.is_sbiw or sbiw_st) or
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
+                active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
+                active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(1);
                 
 
-sreg_n_wr_en <= idc_add or idc_adc or adiw_st or idc_sub  or idc_subi or 
-                idc_sbc or idc_sbci or sbiw_st or
-				idc_cp or idc_cpc or idc_cpi or
-                idc_and or idc_andi or idc_or or idc_ori or idc_eor or idc_com or idc_neg or
-                idc_inc or idc_dec or idc_lsr or idc_ror or idc_asr or sreg_bop_wr_en(2);
+sreg_n_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub  or active_operation.is_subi or 
+                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
+                active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
+                active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(2);
 
-sreg_v_wr_en <= idc_add or idc_adc or adiw_st or idc_sub  or idc_subi or -- idc_adiw
-                idc_sbc or idc_sbci or sbiw_st or idc_neg or idc_com or  -- idc_sbiw
-                idc_inc or idc_dec or
-				idc_cp or idc_cpc or idc_cpi or
-                idc_lsr or idc_ror or idc_asr or sreg_bop_wr_en(3) or
-				idc_and or idc_andi or idc_or or idc_ori or idc_eor; -- V-flag bug fixing
+sreg_v_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub  or active_operation.is_subi or -- active_operation.is_adiw
+                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or active_operation.is_neg or active_operation.is_com or  -- active_operation.is_sbiw
+                active_operation.is_inc or active_operation.is_dec or
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
+                active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(3) or
+				active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor; -- V-flag bug fixing
 
-sreg_s_wr_en <= idc_add or idc_adc or adiw_st or idc_sub or idc_subi or 
-                idc_sbc or idc_sbci or sbiw_st or 
-				idc_cp or idc_cpc or idc_cpi or				
-				idc_and or idc_andi or idc_or or idc_ori or idc_eor or idc_com or idc_neg or
-				idc_inc or idc_dec or idc_lsr or idc_ror or idc_asr or sreg_bop_wr_en(4);
+sreg_s_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub or active_operation.is_subi or 
+                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or 
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or				
+				active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
+				active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(4);
 
-sreg_h_wr_en <= idc_add or idc_adc or idc_sub  or idc_subi or
-				idc_cp or idc_cpc or idc_cpi or
-                idc_sbc or idc_sbci or idc_neg or sreg_bop_wr_en(5);
+sreg_h_wr_en <= active_operation.is_add or active_operation.is_adc or active_operation.is_sub  or active_operation.is_subi or
+				active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
+                active_operation.is_sbc or active_operation.is_sbci or active_operation.is_neg or sreg_bop_wr_en(5);
 
-sreg_t_wr_en <=  idc_bst or sreg_bop_wr_en(6);
+sreg_t_wr_en <=  active_operation.is_bst or sreg_bop_wr_en(6);
 
 sreg_i_wr_en <= irq_st1 or reti_st3 or sreg_bop_wr_en(7); -- WAS "irq_start"
 
-sreg_fl_in <=  bit_pr_sreg_out when (idc_bst or idc_bclr or idc_bset)='1' else		           -- TO THE SREG
+sreg_fl_in <=  bit_pr_sreg_out when (active_operation.is_bst or active_operation.is_bclr or active_operation.is_bset)='1' else		           -- TO THE SREG
 reti_st3&'0'&alu_flags_out.h&alu_flags_out.s&alu_flags_out.v&alu_flags_out.n&alu_flags_out.z&alu_flags_out.c;      
                
 -- #################################################################################################################
@@ -1456,61 +1328,26 @@ reti_st3&'0'&alu_flags_out.h&alu_flags_out.s&alu_flags_out.v&alu_flags_out.n&alu
 
 -- FOR ALU
 
-idc_add_out   <= idc_add;
-idc_adc_out   <= idc_adc;
-idc_adiw_out  <= idc_adiw;
-idc_sub_out   <= idc_sub;
-idc_subi_out  <= idc_subi;
-idc_sbc_out   <= idc_sbc;
-idc_sbci_out  <= idc_sbci;
-idc_sbiw_out  <= idc_sbiw;
 adiw_st_out   <= adiw_st;
 sbiw_st_out   <= sbiw_st;
-idc_and_out   <= idc_and;
-idc_andi_out  <= idc_andi;
-idc_or_out    <= idc_or;
-idc_ori_out   <= idc_ori;
-idc_eor_out   <= idc_eor;              
-idc_com_out   <= idc_com;              
-idc_neg_out   <= idc_neg;
-idc_inc_out   <= idc_inc;
-idc_dec_out   <= idc_dec;
-idc_cp_out    <= idc_cp;              
-idc_cpc_out   <= idc_cpc;
-idc_cpi_out   <= idc_cpi;
-idc_cpse_out  <= idc_cpse;                            
-idc_lsr_out   <= idc_lsr;
-idc_ror_out   <= idc_ror;
-idc_asr_out   <= idc_asr;
-idc_swap_out  <= idc_swap;
 
 -- FOR THE BIT PROCESSOR
 sbi_st_out   <= sbi_st;
 cbi_st_out   <= cbi_st;
-idc_bst_out  <= idc_bst;
-idc_bset_out <= idc_bset;
-idc_bclr_out <= idc_bclr;
-idc_sbic_out <= idc_sbic;
-idc_sbis_out <= idc_sbis;
-idc_sbrs_out <= idc_sbrs;
-idc_sbrc_out <= idc_sbrc;
-idc_brbs_out <= idc_brbs;
-idc_brbc_out <= idc_brbc;
-idc_reti_out <= idc_reti;
 
 -- POST INCREMENT/PRE DECREMENT FOR THE X,Y,Z REGISTERS
-post_inc <= idc_psinc;
-pre_dec  <= idc_prdec;
-reg_h_wr <= (idc_st_x or idc_st_y or idc_st_z or idc_ld_x or idc_ld_y or idc_ld_z) and (idc_psinc or idc_prdec);
+post_inc <= is_post_increment_operation;
+pre_dec  <= is_pre_decrement_operation;
+reg_h_wr <= (active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z) and (is_post_increment_operation or is_pre_decrement_operation);
 
-reg_h_adr(0)<= idc_st_x or idc_ld_x;
-reg_h_adr(1)<= idc_st_y or idc_std_y or idc_ld_y or idc_ldd_y;
-reg_h_adr(2)<= idc_st_z or idc_std_z or idc_ld_z or idc_ldd_z;
+reg_h_adr(0)<= active_operation.is_st_x or active_operation.is_ld_x;
+reg_h_adr(1)<= active_operation.is_st_y or active_operation.is_std_y or active_operation.is_ld_y or active_operation.is_ldd_y;
+reg_h_adr(2)<= active_operation.is_st_z or active_operation.is_std_z or active_operation.is_ld_z or active_operation.is_ldd_z;
 
 -- STACK POINTER CONTROL
-sp_ndown_up <= idc_pop or idc_ret or (ret_st1 and not cpuwait) or idc_reti or (reti_st1 and not cpuwait); -- ?????????
-sp_en <= idc_push or idc_pop or idc_rcall or (rcall_st1 and not cpuwait) or idc_icall or (icall_st1 and not cpuwait) or 
-idc_ret or (ret_st1 and not cpuwait) or idc_reti or (reti_st1 and not cpuwait) or
+sp_ndown_up <= active_operation.is_pop or active_operation.is_ret or (ret_st1 and not cpuwait) or active_operation.is_reti or (reti_st1 and not cpuwait); -- ?????????
+sp_en <= active_operation.is_push or active_operation.is_pop or active_operation.is_rcall or (rcall_st1 and not cpuwait) or active_operation.is_icall or (icall_st1 and not cpuwait) or 
+active_operation.is_ret or (ret_st1 and not cpuwait) or active_operation.is_reti or (reti_st1 and not cpuwait) or
 call_st1 or (call_st2 and not cpuwait) or irq_st1 or (irq_st2 and not cpuwait); --????????
 
 
@@ -1528,11 +1365,11 @@ iowe <= iowe_int;
 dbusout <= dbusout_int;
 
 -- Sleep Control
-sleepi <= idc_sleep; 	 
+sleepi <= active_operation.is_sleep; 	 
 irqok  <= irq_int;	 
 
 -- Watchdog
-wdri <= idc_wdr; 	 
+wdri <= active_operation.is_wdr; 	 
 
 -- ************************** JTAG OCD support ************************************
 

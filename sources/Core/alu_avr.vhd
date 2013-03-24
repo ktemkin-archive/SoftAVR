@@ -15,6 +15,11 @@ use WORK.AVRucPackage.all;
 
 entity alu_avr is port(
 
+              --"One-hot" record which specifies the current operation.
+              --Contains a range of "is_<instruction>" signals, which indicate the type of 
+              --the current instruction.
+              operation       : decoded_operation;
+
               alu_data_r_in   : in std_logic_vector(7 downto 0);
               alu_data_d_in   : in std_logic_vector(7 downto 0);
               
@@ -23,39 +28,9 @@ entity alu_avr is port(
 
 
 -- OPERATION SIGNALS INPUTS
-              idc_add         :in std_logic;
-              idc_adc         :in std_logic;
-              idc_adiw        :in std_logic;
-              idc_sub         :in std_logic;
-              idc_subi        :in std_logic;
-              idc_sbc         :in std_logic;
-              idc_sbci        :in std_logic;
-              idc_sbiw        :in std_logic;
 
               adiw_st         : in std_logic;
               sbiw_st         : in std_logic;
-
-              idc_and         :in std_logic;
-              idc_andi        :in std_logic;
-              idc_or          :in std_logic;
-              idc_ori         :in std_logic;
-              idc_eor         :in std_logic;              
-              idc_com         :in std_logic;              
-              idc_neg         :in std_logic;
-
-              idc_inc         :in std_logic;
-              idc_dec         :in std_logic;
-
-              idc_cp          :in std_logic;              
-              idc_cpc         :in std_logic;
-              idc_cpi         :in std_logic;
-              idc_cpse        :in std_logic;                            
-
-              idc_lsr         :in std_logic;
-              idc_ror         :in std_logic;
-              idc_asr         :in std_logic;
-              idc_swap        :in std_logic;
-
 
 -- DATA OUTPUT
               alu_data_out    : out std_logic_vector(7 downto 0);
@@ -120,21 +95,21 @@ begin
 -- ###############              ALU
 -- ########################################################################
 
-adder_nadd_sub <=(idc_sub or idc_subi or idc_sbc or idc_sbci or idc_sbiw or sbiw_st or
-                  idc_cp or idc_cpc or idc_cpi or idc_cpse ); -- '0' -> '+'; '1' -> '-' 
+adder_nadd_sub <=(operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or operation.is_sbiw or sbiw_st or
+                  operation.is_cp or operation.is_cpc or operation.is_cpi or operation.is_cpse ); -- '0' -> '+'; '1' -> '-' 
 
 -- SREG C FLAG (ALU INPUT)
 alu_c_flag_in_int <= alu_c_flag_in and 
-(idc_adc or adiw_st or idc_sbc or idc_sbci or sbiw_st or 
-idc_cpc or
-idc_ror);
+(operation.is_adc or adiw_st or operation.is_sbc or operation.is_sbci or sbiw_st or 
+operation.is_cpc or
+operation.is_ror);
                                           
 -- SREG Z FLAG ()
 -- flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st)) or 
 --                   ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st));
-flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st or idc_cpc or idc_sbc or idc_sbci)) or 
+flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st or operation.is_cpc or operation.is_sbc or operation.is_sbci)) or 
                   ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st))or
-				  (alu_z_flag_in and alu_z_flag_out_int and(idc_cpc or idc_sbc or idc_sbci));   -- Previous value (for CPC/SBC/SBCI instructions)
+				  (alu_z_flag_in and alu_z_flag_out_int and(operation.is_cpc or operation.is_sbc or operation.is_sbci));   -- Previous value (for CPC/SBC/SBCI instructions)
 
 -- SREG N FLAG
 flags_out.n<= alu_n_flag_out_int;				  
@@ -202,14 +177,14 @@ neg_op_carry(8) <= neg_op_carry(7);                            -- ??!!
 --########################## INC, DEC OPERATIONS ####################
 
 incdec_op_out(0)      <=  alu_data_d_in(0) xor '1';
-incdec_op_carry(0)    <=  alu_data_d_in(0) xor idc_dec;
+incdec_op_carry(0)    <=  alu_data_d_in(0) xor operation.is_dec;
 
 inc_dec:for i in 1 to 7 generate
 incdec_op_out(i)   <= alu_data_d_in(i) xor incdec_op_carry(i-1);
-incdec_op_carry(i) <= (alu_data_d_in(i) xor idc_dec) and incdec_op_carry(i-1);
+incdec_op_carry(i) <= (alu_data_d_in(i) xor operation.is_dec) and incdec_op_carry(i-1);
 end generate;
 
--- TOW's COMPLEMENT OVERFLOW FLAG -> (alu_data_d_in(7) xor idc_dec) and incdec_op_carry(6) 
+-- TOW's COMPLEMENT OVERFLOW FLAG -> (alu_data_d_in(7) xor operation.is_dec) and incdec_op_carry(6) 
 --####################################################################
 
 
@@ -244,7 +219,7 @@ eor_op_out <= alu_data_d_in xor alu_data_r_in;
 
 -- ########################## RIGHT(LSR, ROR, ASR) #######################
 
-right_shift_out(7) <= (idc_ror and alu_c_flag_in_int) or (idc_asr and alu_data_d_in(7)); -- right_shift_out(7)
+right_shift_out(7) <= (operation.is_ror and alu_c_flag_in_int) or (operation.is_asr and alu_data_d_in(7)); -- right_shift_out(7)
 shift_right:for i in 6 downto 0 generate
 right_shift_out(i) <= alu_data_d_in(i+1);
 end generate;	
@@ -270,18 +245,18 @@ end generate;
 -- ALU OUTPUT MUX
 
 alu_data_out_mux:for i in alu_data_out_int'range generate
-alu_data_out_int(i) <= (adder_out(i) and (idc_add or idc_adc or (idc_adiw or adiw_st) or    -- !!!!!
-                                     idc_sub or idc_subi or idc_sbc or idc_sbci or
-                                     (idc_sbiw or sbiw_st) or    -- !!!!!
-                                     idc_cpse or idc_cp or idc_cpc or idc_cpi)) or 
-                                     (neg_op_out(i) and idc_neg) or                               -- NEG
-                                     (incdec_op_out(i) and (idc_inc or idc_dec)) or               -- INC/DEC
-                                     (com_op_out(i) and idc_com) or                               -- COM
-                                     (and_op_out(i) and (idc_and or idc_andi)) or                 -- AND/ANDI                                   
-                                     (or_op_out(i)  and (idc_or or idc_ori)) or                   -- OR/ORI                                   
-                                     (eor_op_out(i) and idc_eor) or                               -- EOR
-                                     (right_shift_out(i) and (idc_lsr or idc_ror or idc_asr)) or  -- LSR/ROR/ASR
-                                     (swap_out(i) and idc_swap);                                  -- SWAP
+alu_data_out_int(i) <= (adder_out(i) and (operation.is_add or operation.is_adc or (operation.is_adiw or adiw_st) or    -- !!!!!
+                                     operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or
+                                     (operation.is_sbiw or sbiw_st) or    -- !!!!!
+                                     operation.is_cpse or operation.is_cp or operation.is_cpc or operation.is_cpi)) or 
+                                     (neg_op_out(i) and operation.is_neg) or                               -- NEG
+                                     (incdec_op_out(i) and (operation.is_inc or operation.is_dec)) or               -- INC/DEC
+                                     (com_op_out(i) and operation.is_com) or                               -- COM
+                                     (and_op_out(i) and (operation.is_and or operation.is_andi)) or                 -- AND/ANDI                                   
+                                     (or_op_out(i)  and (operation.is_or or operation.is_ori)) or                   -- OR/ORI                                   
+                                     (eor_op_out(i) and operation.is_eor) or                               -- EOR
+                                     (right_shift_out(i) and (operation.is_lsr or operation.is_ror or operation.is_asr)) or  -- LSR/ROR/ASR
+                                     (swap_out(i) and operation.is_swap);                                  -- SWAP
 
                                      
 end generate;
@@ -289,18 +264,18 @@ end generate;
 --@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ALU FLAGS OUTPUTS @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 flags_out.h<= (adder_carry(3) and                                                      -- ADDER INSTRUCTIONS
-             (idc_add or idc_adc or idc_sub or idc_subi or idc_sbc or idc_sbci or idc_cp or idc_cpc or idc_cpi)) or   
-             (not neg_op_carry(3) and idc_neg); -- H-flag problem with NEG instruction fixing                                         -- NEG
+             (operation.is_add or operation.is_adc or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or operation.is_cp or operation.is_cpc or operation.is_cpi)) or   
+             (not neg_op_carry(3) and operation.is_neg); -- H-flag problem with NEG instruction fixing                                         -- NEG
              
              
 flags_out.s<= alu_n_flag_out_int xor alu_v_flag_out_int;
 
 alu_v_flag_out_int <= (adder_v_flag_out and	               
-             (idc_add or idc_adc or idc_sub or idc_subi or idc_sbc or idc_sbci or adiw_st or sbiw_st or idc_cp or idc_cpi or idc_cpc)) or
-             ((alu_data_d_in(7) and neg_op_carry(6)) and idc_neg) or                                       -- NEG
-		     (not alu_data_d_in(7) and incdec_op_carry(6) and idc_inc) or -- INC
-		     (alu_data_d_in(7) and incdec_op_carry(6) and idc_dec) or	  -- DEC
-			 ((alu_n_flag_out_int xor alu_c_flag_out_int) and (idc_lsr or idc_ror or idc_asr));            -- LSR,ROR,ASR
+             (operation.is_add or operation.is_adc or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or adiw_st or sbiw_st or operation.is_cp or operation.is_cpi or operation.is_cpc)) or
+             ((alu_data_d_in(7) and neg_op_carry(6)) and operation.is_neg) or                                       -- NEG
+		     (not alu_data_d_in(7) and incdec_op_carry(6) and operation.is_inc) or -- INC
+		     (alu_data_d_in(7) and incdec_op_carry(6) and operation.is_dec) or	  -- DEC
+			 ((alu_n_flag_out_int xor alu_c_flag_out_int) and (operation.is_lsr or operation.is_ror or operation.is_asr));            -- LSR,ROR,ASR
 
 
 alu_n_flag_out_int <= alu_data_out_int(7);
@@ -308,9 +283,9 @@ alu_n_flag_out_int <= alu_data_out_int(7);
 alu_z_flag_out_int <= '1' when alu_data_out_int="00000000" else '0';
 
 alu_c_flag_out_int <= (adder_out(8) and 
-                       (idc_add or idc_adc or (idc_adiw or adiw_st) or idc_sub or idc_subi or idc_sbc or idc_sbci or (idc_sbiw or sbiw_st) or idc_cp or idc_cpc or idc_cpi)) or -- ADDER
-					   (not alu_z_flag_out_int and idc_neg) or    -- NEG
-					   (alu_data_d_in(0) and (idc_lsr or idc_ror or idc_asr)) or idc_com;
+                       (operation.is_add or operation.is_adc or (operation.is_adiw or adiw_st) or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or (operation.is_sbiw or sbiw_st) or operation.is_cp or operation.is_cpc or operation.is_cpi)) or -- ADDER
+					   (not alu_z_flag_out_int and operation.is_neg) or    -- NEG
+					   (alu_data_d_in(0) and (operation.is_lsr or operation.is_ror or operation.is_asr)) or operation.is_com;
 
 -- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 

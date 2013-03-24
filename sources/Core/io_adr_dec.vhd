@@ -26,8 +26,8 @@ architecture RTL of io_adr_dec is
 
 begin
 
-dbusin_int <= spl_out   when (adr=SPL_Address  and iore='1') else
-              sph_out  when  (adr=SPH_Address  and iore='1') else
+dbusin_int <= spl_out   when (adr=SPL_Address   and iore='1') else
+              sph_out  when  (adr=SPH_Address   and iore='1') else
               sreg_out when  (adr=SREG_Address  and iore='1') else
               rampz_out when (adr=RAMPZ_Address and iore='1') else
               dbusin_ext;

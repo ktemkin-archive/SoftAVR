@@ -44,6 +44,7 @@
 *.map
 *.ngm
 *.mrp
+*_bd.bmm
 
 # IP-core-related generated files
 xaw2vhdl.log

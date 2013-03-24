@@ -49,12 +49,104 @@ package AVRuCPackage is
 
   -- Set of system flags.
   type flag_set is record
-    c : std_logic;
-    z : std_logic;
-    n : std_logic;
-    v : std_logic;
-    s : std_logic;
-    h : std_logic;
+    c : std_ulogic;
+    z : std_ulogic;
+    n : std_ulogic;
+    v : std_ulogic;
+    s : std_ulogic;
+    h : std_ulogic;
+  end record;
+
+  -- Decoded operation, which contains a gamut of "boolean" signals indicating
+  -- the operation type decoded from an instruction.
+  type decoded_operation is record
+     is_adc     : std_ulogic; -- INSTRUCTION ADC
+     is_add     : std_ulogic; -- INSTRUCTION ADD
+     is_adiw    : std_ulogic; -- INSTRUCTION ADIW
+     is_and     : std_ulogic; -- INSTRUCTION AND
+     is_andi    : std_ulogic; -- INSTRUCTION ANDI
+     is_asr     : std_ulogic; -- INSTRUCTION ASR
+
+     is_bclr    : std_ulogic; -- INSTRUCTION BCLR
+     is_bld     : std_ulogic; -- INSTRUCTION BLD
+     is_brbc    : std_ulogic; -- INSTRUCTION BRBC
+     is_brbs    : std_ulogic; -- INSTRUCTION BRBS
+     is_bset    : std_ulogic; -- INSTRUCTION BSET
+     is_bst     : std_ulogic; -- INSTRUCTION BST
+
+     is_call    : std_ulogic; -- INSTRUCTION CALL
+     is_cbi     : std_ulogic; -- INSTRUCTION CBI
+     is_com     : std_ulogic; -- INSTRUCTION COM
+     is_cp      : std_ulogic; -- INSTRUCTION CP
+     is_cpc     : std_ulogic; -- INSTRUCTION CPC
+     is_cpi     : std_ulogic; -- INSTRUCTION CPI
+     is_cpse    : std_ulogic; -- INSTRUCTION CPSE
+
+     is_dec     : std_ulogic; -- INSTRUCTION DEC
+
+     is_elpm    : std_ulogic; -- INSTRUCTION ELPM
+     is_eor     : std_ulogic; -- INSTRUCTION EOR
+
+     is_icall   : std_ulogic; -- INSTRUCTION ICALL
+     is_ijmp    : std_ulogic; -- INSTRUCTION IJMP
+
+     is_in      : std_ulogic; -- INSTRUCTION IN
+     is_inc     : std_ulogic; -- INSTRUCTION INC
+
+     is_jmp     : std_ulogic; -- INSTRUCTION JMP
+
+     is_ld_x    : std_ulogic; -- INSTRUCTION LD Rx,X ; LD Rx,X+ ;LD Rx,-X
+     is_ld_y    : std_ulogic; -- INSTRUCTION LD Rx,Y ; LD Rx,Y+ ;LD Rx,-Y
+     is_ldd_y   : std_ulogic; -- INSTRUCTION LDD Rx,Y+q
+     is_ld_z    : std_ulogic; -- INSTRUCTION LD Rx,Z ; LD Rx,Z+ ;LD Rx,-Z
+     is_ldd_z   : std_ulogic; -- INSTRUCTION LDD Rx,Z+q
+
+     is_ldi     : std_ulogic; -- INSTRUCTION LDI
+     is_lds     : std_ulogic; -- INSTRUCTION LDS
+     is_lpm     : std_ulogic; -- INSTRUCTION LPM
+     is_lsr     : std_ulogic; -- INSTRUCTION LSR
+
+     is_mov     : std_ulogic; -- INSTRUCTION MOV
+     is_mul     : std_ulogic; -- INSTRUCTION MUL
+
+     is_neg     : std_ulogic; -- INSTRUCTION NEG
+     is_nop     : std_ulogic; -- INSTRUCTION NOP
+
+     is_or      : std_ulogic; -- INSTRUCTION OR
+     is_ori     : std_ulogic; -- INSTRUCTION ORI
+     is_out     : std_ulogic; -- INSTRUCTION OUT
+
+     is_pop     : std_ulogic; -- INSTRUCTION POP
+     is_push    : std_ulogic; -- INSTRUCTION PUSH
+
+     is_rcall   : std_ulogic; -- INSTRUCTION RCALL
+     is_ret     : std_ulogic; -- INSTRUCTION RET
+     is_reti    : std_ulogic; -- INSTRUCTION RETI
+     is_rjmp    : std_ulogic; -- INSTRUCTION RJMP
+     is_ror     : std_ulogic; -- INSTRUCTION ROR
+
+     is_sbc     : std_ulogic; -- INSTRUCTION SBC
+     is_sbci    : std_ulogic; -- INSTRUCTION SBCI
+     is_sbi     : std_ulogic; -- INSTRUCTION SBI
+     is_sbic    : std_ulogic; -- INSTRUCTION SBIC
+     is_sbis    : std_ulogic; -- INSTRUCTION SBIS
+     is_sbiw    : std_ulogic; -- INSTRUCTION SBIW
+     is_sbrc    : std_ulogic; -- INSTRUCTION SBRC
+     is_sbrs    : std_ulogic; -- INSTRUCTION SBRS
+     is_sleep   : std_ulogic; -- INSTRUCTION SLEEP
+
+     is_st_x    : std_ulogic; -- INSTRUCTION LD X,Rx ; LD X+,Rx ;LD -X,Rx
+     is_st_y    : std_ulogic; -- INSTRUCTION LD Y,Rx ; LD Y+,Rx ;LD -Y,Rx
+     is_std_y   : std_ulogic; -- INSTRUCTION LDD Y+q,Rx
+     is_st_z    : std_ulogic; -- INSTRUCTION LD Z,Rx ; LD Z+,Rx ;LD -Z,Rx
+     is_std_z   : std_ulogic; -- INSTRUCTION LDD Z+q,Rx
+
+     is_sts     : std_ulogic; -- INSTRUCTION STS
+     is_sub     : std_ulogic; -- INSTRUCTION SUB
+     is_subi    : std_ulogic; -- INSTRUCTION SUBI
+     is_swap    : std_ulogic; -- INSTRUCTION SWAP
+
+     is_wdr     : std_ulogic; -- INSTRUCTION WDR
   end record;
 
   --
