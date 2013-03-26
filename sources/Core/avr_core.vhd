@@ -297,8 +297,8 @@ component alu_avr port map(
   operation => active_operation,
   
   -- Data inputs
-  alu_data_r_in => alu_data_r_in,
-  alu_data_d_in => reg_rd_out,
+  rd_value => reg_rd_out,
+  rr_value => alu_data_r_in,
 
   alu_c_flag_in => sreg_out(0),
   alu_z_flag_in => sreg_out(1),

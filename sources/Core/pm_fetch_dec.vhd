@@ -152,9 +152,9 @@ signal adiw_sbiw_encoder_mux_out : std_logic_vector (4 downto 0);
 
 
 -- PROGRAM COUNTER SIGNALS
-signal program_counter_tmp : std_logic_vector (15 downto 0); -- TO STORE PC DURING LPM/ELPM INSTRUCTIONS
-signal program_counter     : std_logic_vector (15 downto 0);
-signal program_counter_in  : std_logic_vector (15 downto 0);
+signal program_counter_tmp      : std_logic_vector (15 downto 0); -- TO STORE PC DURING LPM/ELPM INSTRUCTIONS
+signal program_counter          : std_logic_vector (15 downto 0);
+signal program_counter_in       : std_logic_vector (15 downto 0);
 signal program_counter_high_fr  : std_logic_vector (7 downto 0); -- TO STORE PC FOR CALL,IRQ,RCALL,ICALL
 
 signal pc_low       : std_logic_vector (7 downto 0);
@@ -427,53 +427,30 @@ nop_insert_st <= adiw_st or sbiw_st or cbi_st or sbi_st or rjmp_st or ijmp_st or
 
 active_operation.is_adc  <= '1' when instruction_code_reg(15 downto 10) = "000111" else '0'; -- 000111XXXXXXXXXX
 active_operation.is_add  <= '1' when instruction_code_reg(15 downto 10) = "000011" else '0'; -- 000011XXXXXXXXXX
-
 active_operation.is_adiw <= '1' when instruction_code_reg(15 downto 8) = "10010110" else '0'; -- 10010110XXXXXXXX
-
 active_operation.is_and  <= '1' when instruction_code_reg(15 downto 10) = "001000" else '0'; -- 001000XXXXXXXXXX
 active_operation.is_andi <= '1' when instruction_code_reg(15 downto 12) = "0111" else '0'; -- 0111XXXXXXXXXXXX
-
 active_operation.is_asr  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100101" else '0'; -- 1001010XXXXX0101
-
 active_operation.is_bclr <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010011000" else '0'; -- 100101001XXX1000
-
 active_operation.is_bld  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3) = "11111000" else '0'; -- 1111100XXXXX0XXX
-
 active_operation.is_brbc <= '1' when instruction_code_reg(15 downto 10) = "111101" else '0'; -- 111101XXXXXXXXXX
 active_operation.is_brbs <= '1' when instruction_code_reg(15 downto 10) = "111100" else '0'; -- 111100XXXXXXXXXX
-
 active_operation.is_bset <= '1' when instruction_code_reg(15 downto 7)&instruction_code_reg(3 downto 0) = "1001010001000" else '0'; -- 100101000XXX1000
-
 active_operation.is_bst  <= '1' when instruction_code_reg(15 downto 9) = "1111101" else '0'; -- 1111101XXXXXXXXX
-
 active_operation.is_call <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010111" else '0'; -- 1001010XXXXX111X
-
 active_operation.is_cbi  <= '1' when instruction_code_reg(15 downto 8) = "10011000" else '0'; -- 10011000XXXXXXXX
-
 active_operation.is_com  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100000" else '0'; -- 1001010XXXXX0000
-
 active_operation.is_cp   <= '1' when instruction_code_reg(15 downto 10) = "000101" else '0'; -- 000101XXXXXXXXXX
-
 active_operation.is_cpc  <= '1' when instruction_code_reg(15 downto 10) = "000001" else '0'; -- 000001XXXXXXXXXX
-
 active_operation.is_cpi  <= '1' when instruction_code_reg(15 downto 12) = "0011" else '0'; -- 0011XXXXXXXXXXXX
-
 active_operation.is_cpse <= '1' when instruction_code_reg(15 downto 10) = "000100" else '0'; -- 000100XXXXXXXXXX
-
 active_operation.is_dec  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010101010" else '0'; -- 1001010XXXXX1010
-
 active_operation.is_elpm <= '1' when instruction_code_reg = "1001010111011000" else '0'; -- 1001010111011000
-
 active_operation.is_eor  <= '1' when instruction_code_reg(15 downto 10) = "001001" else '0'; -- 001001XXXXXXXXXX
-
 active_operation.is_icall<= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101011001" else '0'; -- 10010101XXXX1001
-
 active_operation.is_ijmp <= '1' when instruction_code_reg(15 downto 8)&instruction_code_reg(3 downto 0) = "100101001001" else '0'; -- 10010100XXXX1001
-
 active_operation.is_in   <= '1' when instruction_code_reg(15 downto 11) = "10110" else '0'; -- 10110XXXXXXXXXXX
-
 active_operation.is_inc  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 0) = "10010100011" else '0'; -- 1001010XXXXX0011
-
 active_operation.is_jmp  <= '1' when instruction_code_reg(15 downto 9)&instruction_code_reg(3 downto 1) = "1001010110" else '0'; -- 1001010XXXXX110X
 
 
@@ -860,27 +837,28 @@ offset_brbx <= "0000000000"&dex_brxx_offset(5 downto 0) when (dex_brxx_offset(6)
                "1111111111"&dex_brxx_offset(5 downto 0);                                   -- - 
 
 -- OFFSET FOR RJMP/RCALL INSTRUCTIONS +2047/-2048
-offset_rxx <= "00000"&dex_adr12mem_s(10 downto 0) when (dex_adr12mem_s(11)='0') else       -- +
-              "11111"&dex_adr12mem_s(10 downto 0);                                          -- -
+offset_rxx <= "00000" & dex_adr12mem_s(10 downto 0) when (dex_adr12mem_s(11) ='0' ) else       -- +
+              "11111" & dex_adr12mem_s(10 downto 0);                                          -- -
 
-program_counter <= pc_high&pc_low;
+program_counter <= pc_high & pc_low;
 
-program_counter_in <= program_counter + offset_brbx when ((active_operation.is_brbc or active_operation.is_brbs) and  bit_test_op_out) ='1'else  -- BRBC/BRBS                  
-                      program_counter + offset_rxx when (active_operation.is_rjmp or active_operation.is_rcall)='1'else     -- RJMP/RCALL
-                      reg_z_out when (active_operation.is_ijmp or active_operation.is_icall)='1'else                        -- IJMP/ICALL
-                      pa15_pm&reg_z_out(15 downto 1) when (active_operation.is_lpm or active_operation.is_elpm) ='1'else    -- LPM/ELPM
-                      instruction_reg  when (jmp_st1 or call_st1)='1'else                    -- JMP/CALL
-                      "0000000000"&irqackad_int&'0' when irq_st1 ='1' else                 -- INTERRUPT      
-                      dbusin&"00000000"  when (ret_st1 or reti_st1)='1' else                 -- RET/RETI -> PC HIGH BYTE                  
-                      "00000000"&dbusin  when (ret_st2 or reti_st2)='1' else                 -- RET/RETI -> PC LOW BYTE                       
-                      program_counter_tmp when (lpm_st1)='1'                                 -- AFTER LPM/ELPM INSTRUCTION   
-                      else program_counter+1;      -- THE MOST USUAL CASE
+program_counter_in <= 
+  program_counter + offset_brbx when ((active_operation.is_brbc or active_operation.is_brbs) and  bit_test_op_out) ='1'else  -- BRBC/BRBS                  
+  program_counter + offset_rxx  when (active_operation.is_rjmp or active_operation.is_rcall) = '1' else     -- RJMP/RCALL
+  reg_z_out when (active_operation.is_ijmp or active_operation.is_icall)='1'else                        -- IJMP/ICALL
+  pa15_pm&reg_z_out(15 downto 1) when (active_operation.is_lpm or active_operation.is_elpm) ='1'else    -- LPM/ELPM
+  instruction_reg  when (jmp_st1 or call_st1)='1'else                    -- JMP/CALL
+  "0000000000" & irqackad_int & '0' when irq_st1 ='1' else                 -- INTERRUPT      
+  dbusin & "00000000"  when (ret_st1 or reti_st1)='1' else                 -- RET/RETI -> PC HIGH BYTE                  
+  "00000000" & dbusin  when (ret_st2 or reti_st2)='1' else                 -- RET/RETI -> PC LOW BYTE                       
+  program_counter_tmp when (lpm_st1)='1'                                 -- AFTER LPM/ELPM INSTRUCTION   
+  else program_counter+1;      -- THE MOST USUAL CASE
 
-						  
+            
 
 pc_low_en  <= not (active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ld_z or active_operation.is_ldd_y or active_operation.is_ldd_z or
 	               active_operation.is_st_x or active_operation.is_st_y or active_operation.is_st_z or active_operation.is_std_y or active_operation.is_std_z or
-				   ((sts_st or lds_st) and cpuwait)or 
+				   ((sts_st or lds_st) and cpuwait) or 
 				   active_operation.is_adiw or active_operation.is_sbiw or
 				   active_operation.is_push or active_operation.is_pop or
 				   active_operation.is_cbi or active_operation.is_sbi or
@@ -910,7 +888,8 @@ elsif (cp2='1' and cp2'event) then              -- CLOCK
 end if;
 end process;
 
-program_counter_high:process(cp2,ireset)
+program_counter_high:
+process(cp2,ireset)
 begin
 if ireset='0' then                               -- RESET
 pc_high<=(others => '0');

@@ -26,6 +26,15 @@ package AVRuCPackage is
 
   constant IOAdrWidth          : positive := 16;
 
+  --
+  -- Data types representing data in the AVR.
+  --
+
+  --Generic data types, used in general-purpose registers.
+  subtype byte is std_logic_vector(7 downto 0);
+  subtype word is std_logic_vector(15 downto 0);
+
+  subtype instruction is std_logic_vector(15 downto 0);
 
   --
   -- Data types representing addresses in the AVR's various memory spaces.
@@ -309,6 +318,10 @@ package	body AVRuCPackage is
         end if;
 
       end loop;
+
+    --This _should_ never be triggered, but silences an ISE warning.
+    return 0;
+
     end if;	
 
   end log2;	

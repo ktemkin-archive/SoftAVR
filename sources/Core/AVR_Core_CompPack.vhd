@@ -119,8 +119,8 @@ component alu_avr is port(
               --the current instruction.
               operation       : decoded_operation;
 
-              alu_data_r_in   : in std_logic_vector(7 downto 0);
-              alu_data_d_in   : in std_logic_vector(7 downto 0);
+              rd_value        : in std_logic_vector(7 downto 0);
+              rr_value        : in std_logic_vector(7 downto 0);
               
               alu_c_flag_in   : in std_logic;
               alu_z_flag_in   : in std_logic;

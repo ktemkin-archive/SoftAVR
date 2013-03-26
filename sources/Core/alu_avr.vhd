@@ -1,293 +1,302 @@
---************************************************************************************************
---  ALU(internal module) for AVR core
---	Version 1.2
---  Designed by Ruslan Lepetenok 
---	Modified 02.08.2003 
--- (CPC/SBC/SBCI Z-flag bug found)
---  H-flag with NEG instruction found
+ --************************************************************************************************
+--  AVR ALU
+--  (ATMega103 compatible.)
+--
+--  Authors:
+--      -- Kyle J. Temkin, Binghamton University, <ktemkin@binghamton.edu>
+--      -- Ruslan Lepetenok, original core designer
 --************************************************************************************************
 
 library IEEE;
 use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+use IEEE.std_logic_misc.all;
 
-use WORK.AVRucPackage.all;
+use work.AVRucPackage.all;
 
-
+-- 
+-- Generic interface for an AVR ALU.
+--
 entity alu_avr is port(
+  --"One-hot" record which specifies the current operation.
+  --Contains a range of "is_<instruction>" signals, which indicate the type of 
+  --the current instruction.
+  operation       : decoded_operation;
 
-              --"One-hot" record which specifies the current operation.
-              --Contains a range of "is_<instruction>" signals, which indicate the type of 
-              --the current instruction.
-              operation       : decoded_operation;
+  rr_value        : in byte;
+  rd_value        : in byte;
 
-              alu_data_r_in   : in std_logic_vector(7 downto 0);
-              alu_data_d_in   : in std_logic_vector(7 downto 0);
-              
-              alu_c_flag_in   : in std_logic;
-              alu_z_flag_in   : in std_logic;
+  alu_c_flag_in   : in std_logic;
+  alu_z_flag_in   : in std_logic;
 
+  -- OPERATION SIGNALS INPUTS
 
--- OPERATION SIGNALS INPUTS
+  adiw_st         : in std_logic;
+  sbiw_st         : in std_logic;
 
-              adiw_st         : in std_logic;
-              sbiw_st         : in std_logic;
+  -- ALU Result.
+  alu_data_out    : buffer byte;
 
--- DATA OUTPUT
-              alu_data_out    : out std_logic_vector(7 downto 0);
-
--- FLAGS OUTPUT
-              flags_out   : out flag_set
+  -- ALU "flags".
+  --
+  -- These values determine the _input_ to each of the flag registers,
+  -- and the next state of a given flag _if_ a relevant instruction is
+  -- being performed. When an unrelated operation is being executed,
+  -- these values are meaningless.
+  flags_out       : buffer flag_set
 );
 
 end alu_avr;
 
-architecture rtl of alu_avr is
+architecture RTL of alu_avr is
 
--- ####################################################
--- INTERNAL SIGNALS
--- ####################################################
+  -- Operation category signals.
+  -- These convenience signals are true iff the given operation
+  -- belongs to a category of operations with similar properties.
+  signal is_subtraction_operation                     : std_ulogic;   
+  signal is_right_shift_operation                     : std_ulogic;
+  signal is_carry_operation                           : std_logic;
 
-signal alu_data_out_int		    : std_logic_vector (7 downto 0);	
+  -- Operation flag properties.
+  -- These convenience signals make an "observation" about how the
+  -- given operation affects the flags.
+  signal only_clears_z_flag                           : std_logic;
+  signal operation_uses_carry                         : std_ulogic;
+  signal operation_does_not_set_carry                 : std_ulogic;
+  signal adder_sets_extended_flags                    : std_ulogic;
+  
+  -- Internal adder signals.
+  signal operand_left                                 : byte;
+  signal operand_right                                : byte;
+  signal operand_left_for_carry                       : byte;
+  signal adder_carry_in                               : std_logic_vector(8 downto 0);
+  signal adder_out                                    : std_logic_vector(8 downto 0);
+  signal v_flag_adder	                                : std_ulogic;
 
--- ALU FLAGS (INTERNAL)
-signal alu_z_flag_out_int       : std_logic;
-signal alu_c_flag_in_int        : std_logic;            -- INTERNAL CARRY FLAG
+  -- Outputs of the individual functional units.
+  signal com_operation, and_operation, or_operation   : byte; 
+  signal eor_operation, swap_operation                : byte; 
+  signal lsr_operation, asr_operation, ror_operation  : byte;
 
-signal alu_n_flag_out_int       : std_logic;
-signal alu_v_flag_out_int       : std_logic;
-signal alu_c_flag_out_int       : std_logic;
+  -- Bit-flag indicating that the ALU result is zero.
+  signal result_is_zero                               : std_ulogic;
 
--- ADDER SIGNALS --
-signal adder_nadd_sub : std_logic;        -- 0 -> ADD ,1 -> SUB
-signal adder_v_flag_out	: std_logic;
+  -- Flag outputs for individual functional units.
+  signal v_flag_shift_right                           : std_ulogic;
+  signal v_flag_add_operation, v_flag_sub_operation   : std_ulogic;
+  
+  -- Signal which determines when the internal adder signal
+  -- should drive the output.
+  signal use_adder_output                             : std_ulogic;
 
-signal adder_carry : std_logic_vector(8 downto 0);
-signal adder_d_in  : std_logic_vector(8 downto 0);
-signal adder_r_in  : std_logic_vector(8 downto 0);
-signal adder_out   : std_logic_vector(8 downto 0);
-
--- NEG OPERATOR SIGNALS 
-signal neg_op_in    : std_logic_vector(7 downto 0);	
-signal neg_op_carry : std_logic_vector(8 downto 0);
-signal neg_op_out   : std_logic_vector(8 downto 0);
-
--- INC, DEC OPERATOR SIGNALS 
-signal incdec_op_in    : std_logic_vector (7 downto 0);	
-signal incdec_op_carry : std_logic_vector(7 downto 0);
-signal incdec_op_out   : std_logic_vector(7 downto 0);
-
-
-signal com_op_out : std_logic_vector(7 downto 0);
-signal and_op_out : std_logic_vector(7 downto 0);
-signal or_op_out : std_logic_vector(7 downto 0);
-signal eor_op_out : std_logic_vector(7 downto 0);
-
--- SHIFT SIGNALS
-signal right_shift_out : std_logic_vector(7 downto 0);
-
--- SWAP SIGNALS
-signal swap_out : std_logic_vector(7 downto 0);
 
 begin
+    
+  --Determine if the given operation is a subtraction operation,
+  --which requires a slightly different adder setup.
+  is_subtraction_operation <= 
+    operation.is_sub   or
+    operation.is_subi  or
+    operation.is_sbc   or
+    operation.is_sbci  or
+    operation.is_cp    or
+    operation.is_cpc   or
+    operation.is_cpi   or
+    operation.is_cpse  or
+    operation.is_sbiw  or 
+    operation.is_dec   or 
+    operation.is_neg   or
+    sbiw_st;
 
-	
--- ########################################################################
--- ###############              ALU
--- ########################################################################
+  --Convenience signal which determines when the adder output should be used.
+  use_adder_output <= 
+    is_subtraction_operation or
+    operation.is_add         or 
+    operation.is_adc         or 
+    operation.is_adiw        or 
+    operation.is_inc         or
+    sbiw_st                  or
+    adiw_st;
 
-adder_nadd_sub <=(operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or operation.is_sbiw or sbiw_st or
-                  operation.is_cp or operation.is_cpc or operation.is_cpi or operation.is_cpse ); -- '0' -> '+'; '1' -> '-' 
+  --Convenience signal which determines when the adder's output should be used to
+  --set the half-carry and V flags.
+  adder_sets_extended_flags <= 
+    operation.is_add  or 
+    operation.is_adc  or 
+    operation.is_sub  or 
+    operation.is_subi or 
+    operation.is_sbc  or 
+    operation.is_sbci or 
+    operation.is_cp   or 
+    operation.is_cpc  or 
+    operation.is_cpi  or
+    operation.is_neg;
 
--- SREG C FLAG (ALU INPUT)
-alu_c_flag_in_int <= alu_c_flag_in and 
-(operation.is_adc or adiw_st or operation.is_sbc or operation.is_sbci or sbiw_st or 
-operation.is_cpc or
-operation.is_ror);
-                                          
--- SREG Z FLAG ()
--- flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st)) or 
---                   ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st));
-flags_out.z<= (alu_z_flag_out_int and not(adiw_st or sbiw_st or operation.is_cpc or operation.is_sbc or operation.is_sbci)) or 
-                  ((alu_z_flag_in and alu_z_flag_out_int) and (adiw_st or sbiw_st))or
-				  (alu_z_flag_in and alu_z_flag_out_int and(operation.is_cpc or operation.is_sbc or operation.is_sbci));   -- Previous value (for CPC/SBC/SBCI instructions)
+  --Convenience signal which (non-exhaustively) indicates 
+  --operations that do not set the carry.
+  operation_does_not_set_carry <= 
+    operation.is_cpse or
+    operation.is_dec  or
+    operation.is_inc;
 
--- SREG N FLAG
-flags_out.n<= alu_n_flag_out_int;				  
-				  
--- SREG V FLAG
-flags_out.v<= alu_v_flag_out_int;				  
+  -- Convenience signal which determines whether the given operation is a right-shift operation.
+  is_right_shift_operation <= operation.is_lsr or operation.is_ror or operation.is_asr;
 
+  --Convenience signals which determine whether the operation is a carry operation, and whether it uses the
+  --current value of the carry flag.
+  is_carry_operation <= operation.is_adc or operation.is_sbc or operation.is_sbci or operation.is_cpc;
+  operation_uses_carry <= is_carry_operation or adiw_st or sbiw_st or operation.is_ror; 
 
-flags_out.c<= alu_c_flag_out_int;				  
+  --Convenience signal which indicates whether the current operation is only capable of clearing the Z flag.
+  --This is used to allow multi-byte "chaining" operations to leave the Z flag untounced on zero.
+  --Note that ADC is not included, for what seem to be historical reasons.
+  only_clears_z_flag <= operation.is_sbc or operation.is_sbci or operation.is_cpc;
 
-alu_data_out <= alu_data_out_int;
+  --
+  -- Main ALU Adder
+  -- Note: switching to a more optimized adder might increase throughput.
+  --
+                              
+  --Set the carry in to the LSB of our carry adder to the carry in,
+  --or zero if the operation does not use the carry.
+  adder_carry_in(0) <= alu_c_flag_in and operation_uses_carry;
 
--- #########################################################################################
+  -- Left hand operand. When subtracting, this will be the minuend.
+  operand_left <=
+    --The NEG operation subtracts Rd from zero.
+    x"00" when operation.is_neg = '1' else 
+    --All other operations use Rd as the LH operand.
+    rd_value;
 
-adder_d_in <= '0'&alu_data_d_in;
-adder_r_in <= '0'&alu_data_r_in;  
+  -- Right hand operation. When subtracting, this will be the subtrahend.
+  operand_right <= 
+    --The NEG operation subtracts Rd from zero...
+    rd_value when operation.is_neg = '1' else
+    -- The increment and decrement operations add/subtract one respectively.
+    x"01" when (operation.is_inc or operation.is_dec) = '1' else
+    --All other operations use Rr as the RH operand.
+    rr_value; 
+                                            
+  -- If we have a subtraction operation, use the inverted value of Rd
+  -- to compute the carry out. This is a (slightly optimized) way to
+  -- invert and add one-- thus computing the two's compliment of addition.
+  operand_left_for_carry <= not operand_left when is_subtraction_operation = '1' else operand_left;  
 
---########################## ADDEER ###################################
+  --
+  -- Main adder for the AVR's alu.
+  -- Performs all addition and subtraction operations for the AVR.
+  --
+  CARRY_RIPPLE_ADDER:
+  for i in operand_left'range generate
 
-adder_out(0) <= adder_d_in(0) xor adder_r_in(0) xor alu_c_flag_in_int;
-adder_carry(0) <= ((adder_d_in(0) xor adder_nadd_sub) and adder_r_in(0)) or
-                (((adder_d_in(0) xor adder_nadd_sub) or adder_r_in(0)) and alu_c_flag_in_int);
+    --Compute the given bit of the provided sum/difference.
+    --This uses the classic addition algorithm.
+    adder_out(i) <= operand_left(i) xor operand_right(i) xor adder_carry_in(i);
 
-summator:for i in 1 to 8 generate
-adder_out(i) <= adder_d_in(i) xor adder_r_in(i) xor adder_carry(i-1);
-adder_carry(i) <= ((adder_d_in(i) xor adder_nadd_sub) and adder_r_in(i)) or 
-                (((adder_d_in(i) xor adder_nadd_sub) or adder_r_in(i)) and adder_carry(i-1));
-end generate;
+    -- Compute the carry in to the _next_ bit of the provided sum.
+    adder_carry_in(i + 1) <= 
+      (operand_left_for_carry(i) and operand_right(i)) or
+      (operand_left_for_carry(i) and adder_carry_in(i)) or
+      (operand_right(i) and adder_carry_in(i));
 
--- FLAGS  FOR ADDER INSTRUCTIONS: 
--- CARRY FLAG (C) -> adder_out(8)
--- HALF CARRY FLAG (H) -> adder_carry(3)
--- TOW'S COMPLEMENT OVERFLOW  (V) -> 
+  end generate;
 
-adder_v_flag_out <= (((adder_d_in(7) and adder_r_in(7) and not adder_out(7)) or 
-                    (not adder_d_in(7) and not adder_r_in(7) and adder_out(7))) and not adder_nadd_sub) or -- ADD
-                    (((adder_d_in(7) and not adder_r_in(7) and not adder_out(7)) or
-					(not adder_d_in(7) and adder_r_in(7) and adder_out(7))) and adder_nadd_sub);
-																										   -- SUB
---#####################################################################
+  -- Determine if signed overflow has occurred. This is functionally
+  -- equivalent to using the carry out and the carry out minus one, but
+  -- doesn't add to the critical path the way using the carry out does.
+  v_flag_add_operation <= 
+     --Overflow has occurred if we add a negative to a negative
+     --and get a positive, or...
+     (operand_left(7) and operand_right(7) and not adder_out(7)) or 
+     --... if we add a positive to a positive and get a negative.
+     (not operand_left(7) and not operand_right(7) and adder_out(7));
 
+  v_flag_sub_operation <= 
+     --Overflow has occurred if we subtract a positive from a negative
+     --and get a positive, or...
+     (operand_left(7) and not operand_right(7) and not adder_out(7)) or 
+     -- ... if we subtract a negative from a positive and get a negative.
+     (not operand_left(7) and operand_right(7) and adder_out(7));
 
--- LOGICAL OPERATIONS FOR ONE OPERAND
+  -- Determine whether signed overflow occurred during the given addition.
+  v_flag_adder <= v_flag_sub_operation when is_subtraction_operation = '1' else v_flag_add_operation;
 
---########################## NEG OPERATION ####################
+  --
+  -- Logical Operations
+  -- 
 
-neg_op_out(0)   <= not alu_data_d_in(0) xor '1';
-neg_op_carry(0) <= not alu_data_d_in(0) and '1';
+  -- COM: One's compliment.
+  com_operation <= not rd_value;
 
-neg_op:for i in 1 to 7 generate
-neg_op_out(i)   <= not alu_data_d_in(i) xor neg_op_carry(i-1);
-neg_op_carry(i) <= not alu_data_d_in(i) and neg_op_carry(i-1);
-end generate;
+  -- AND: Bitwise AND.
+  and_operation <= rd_value and rr_value;
+  
+  -- OR:  Bitwise OR
+  or_operation <= rd_value or rr_value;
 
-neg_op_out(8) <= neg_op_carry(7) xor '1';
-neg_op_carry(8) <= neg_op_carry(7);                            -- ??!!
+  -- EOR: Exclusive OR
+  eor_operation <= rd_value xor rr_value;
 
--- CARRY FLAGS  FOR NEG INSTRUCTION: 
--- CARRY FLAG -> neg_op_out(8)
--- HALF CARRY FLAG -> neg_op_carry(3)
--- TOW's COMPLEMENT OVERFLOW FLAG -> alu_data_d_in(7) and neg_op_carry(6) 
---############################################################################	
+  -- LSR: Logic Shift Right
+  lsr_operation         <= '0' & rd_value(7 downto 1);
+  v_flag_shift_right    <= flags_out.n xor flags_out.c;
 
+  -- ASR: Arithmetic Shift Right
+  asr_operation <= rd_value(7) & rd_value(7 downto 1);
 
---########################## INC, DEC OPERATIONS ####################
+  -- ROR: Rotate Right (through carry)
+  ror_operation <= alu_c_flag_in & rd_value(7 downto 1);
 
-incdec_op_out(0)      <=  alu_data_d_in(0) xor '1';
-incdec_op_carry(0)    <=  alu_data_d_in(0) xor operation.is_dec;
-
-inc_dec:for i in 1 to 7 generate
-incdec_op_out(i)   <= alu_data_d_in(i) xor incdec_op_carry(i-1);
-incdec_op_carry(i) <= (alu_data_d_in(i) xor operation.is_dec) and incdec_op_carry(i-1);
-end generate;
-
--- TOW's COMPLEMENT OVERFLOW FLAG -> (alu_data_d_in(7) xor operation.is_dec) and incdec_op_carry(6) 
---####################################################################
-
-
---########################## COM OPERATION ###################################
-com_op_out <= not alu_data_d_in;
--- FLAGS 
--- TOW's COMPLEMENT OVERFLOW FLAG (V)  -> '0'
--- CARRY FLAG (C) -> '1' 
---############################################################################
-
--- LOGICAL OPERATIONS FOR TWO OPERANDS	
-
---########################## AND OPERATION ###################################
-and_op_out <= alu_data_d_in and alu_data_r_in;
--- FLAGS 
--- TOW's COMPLEMENT OVERFLOW FLAG (V)  -> '0'
---############################################################################
-
---########################## OR OPERATION ###################################
-or_op_out <= alu_data_d_in or alu_data_r_in;
--- FLAGS 
--- TOW's COMPLEMENT OVERFLOW FLAG (V)  -> '0'
---############################################################################
-
---########################## EOR OPERATION ###################################
-eor_op_out <= alu_data_d_in xor alu_data_r_in;
--- FLAGS 
--- TOW's COMPLEMENT OVERFLOW FLAG (V)  -> '0'
---############################################################################
-
--- SHIFT OPERATIONS 
-
--- ########################## RIGHT(LSR, ROR, ASR) #######################
-
-right_shift_out(7) <= (operation.is_ror and alu_c_flag_in_int) or (operation.is_asr and alu_data_d_in(7)); -- right_shift_out(7)
-shift_right:for i in 6 downto 0 generate
-right_shift_out(i) <= alu_data_d_in(i+1);
-end generate;	
-
--- FLAGS 
--- CARRY FLAG (C)                      -> alu_data_d_in(0) 
--- NEGATIVE FLAG (N)                   -> right_shift_out(7)
--- TOW's COMPLEMENT OVERFLOW FLAG (V)  -> N xor C  (left_shift_out(7) xor alu_data_d_in(0))
-
--- #######################################################################
-
-
--- ################################## SWAP ###############################
-
-swap_h:for i in 7 downto 4 generate
-swap_out(i) <= alu_data_d_in(i-4);
-end generate;
-swap_l:for i in 3 downto 0 generate
-swap_out(i) <= alu_data_d_in(i+4);
-end generate;
--- #######################################################################
-
--- ALU OUTPUT MUX
-
-alu_data_out_mux:for i in alu_data_out_int'range generate
-alu_data_out_int(i) <= (adder_out(i) and (operation.is_add or operation.is_adc or (operation.is_adiw or adiw_st) or    -- !!!!!
-                                     operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or
-                                     (operation.is_sbiw or sbiw_st) or    -- !!!!!
-                                     operation.is_cpse or operation.is_cp or operation.is_cpc or operation.is_cpi)) or 
-                                     (neg_op_out(i) and operation.is_neg) or                               -- NEG
-                                     (incdec_op_out(i) and (operation.is_inc or operation.is_dec)) or               -- INC/DEC
-                                     (com_op_out(i) and operation.is_com) or                               -- COM
-                                     (and_op_out(i) and (operation.is_and or operation.is_andi)) or                 -- AND/ANDI                                   
-                                     (or_op_out(i)  and (operation.is_or or operation.is_ori)) or                   -- OR/ORI                                   
-                                     (eor_op_out(i) and operation.is_eor) or                               -- EOR
-                                     (right_shift_out(i) and (operation.is_lsr or operation.is_ror or operation.is_asr)) or  -- LSR/ROR/ASR
-                                     (swap_out(i) and operation.is_swap);                                  -- SWAP
-
-                                     
-end generate;
-
---@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ALU FLAGS OUTPUTS @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-flags_out.h<= (adder_carry(3) and                                                      -- ADDER INSTRUCTIONS
-             (operation.is_add or operation.is_adc or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or operation.is_cp or operation.is_cpc or operation.is_cpi)) or   
-             (not neg_op_carry(3) and operation.is_neg); -- H-flag problem with NEG instruction fixing                                         -- NEG
-             
-             
-flags_out.s<= alu_n_flag_out_int xor alu_v_flag_out_int;
-
-alu_v_flag_out_int <= (adder_v_flag_out and	               
-             (operation.is_add or operation.is_adc or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or adiw_st or sbiw_st or operation.is_cp or operation.is_cpi or operation.is_cpc)) or
-             ((alu_data_d_in(7) and neg_op_carry(6)) and operation.is_neg) or                                       -- NEG
-		     (not alu_data_d_in(7) and incdec_op_carry(6) and operation.is_inc) or -- INC
-		     (alu_data_d_in(7) and incdec_op_carry(6) and operation.is_dec) or	  -- DEC
-			 ((alu_n_flag_out_int xor alu_c_flag_out_int) and (operation.is_lsr or operation.is_ror or operation.is_asr));            -- LSR,ROR,ASR
+  -- SWAP: Nibble swap.
+  swap_operation <= rd_value(3 downto 0) & rd_value(7 downto 4);
 
 
-alu_n_flag_out_int <= alu_data_out_int(7);
+  --
+  -- ALU output "multiplexer".
+  --
+  alu_data_out <= 
+    adder_out(7 downto 0)     when use_adder_output  = '1' else
+    com_operation             when operation.is_com  = '1' else
+    and_operation             when operation.is_and  = '1' else
+    or_operation              when operation.is_or   = '1' else
+    or_operation              when operation.is_ori  = '1' else
+    eor_operation             when operation.is_eor  = '1' else
+    lsr_operation             when operation.is_lsr  = '1' else
+    ror_operation             when operation.is_ror  = '1' else
+    asr_operation             when operation.is_asr  = '1' else
+    swap_operation            when operation.is_swap = '1' else
+    x"00";
 
-alu_z_flag_out_int <= '1' when alu_data_out_int="00000000" else '0';
 
-alu_c_flag_out_int <= (adder_out(8) and 
-                       (operation.is_add or operation.is_adc or (operation.is_adiw or adiw_st) or operation.is_sub or operation.is_subi or operation.is_sbc or operation.is_sbci or (operation.is_sbiw or sbiw_st) or operation.is_cp or operation.is_cpc or operation.is_cpi)) or -- ADDER
-					   (not alu_z_flag_out_int and operation.is_neg) or    -- NEG
-					   (alu_data_d_in(0) and (operation.is_lsr or operation.is_ror or operation.is_asr)) or operation.is_com;
+  --
+  -- Logic that determines the value of the flags according to the operation being performed.
+  --
 
--- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  -- S (Signed test)
+  flags_out.s <= flags_out.n xor flags_out.v;
 
+  -- N (Negative flag)
+  flags_out.n <= alu_data_out(7);
 
+  -- Z (Zero flag)
+  result_is_zero <= not or_reduce(alu_data_out);
+  flags_out.z <= result_is_zero and alu_z_flag_in when only_clears_z_flag = '1' else result_is_zero;
+
+  -- H (Half Carry)
+  flags_out.h <= adder_carry_in(4) when adder_sets_extended_flags = '1' else '0';
+
+  -- C (Carry flag)
+  flags_out.c <= 
+     adder_carry_in(8)    when (use_adder_output and not operation_does_not_set_carry)    = '1' else
+     rd_value(0)          when is_right_shift_operation                                   = '1' else
+     '1'                  when operation.is_com                                           = '1' else
+     '0';
+
+  -- V (Two's compliment overflow)
+  flags_out.v <= 
+    v_flag_adder          when (adiw_st or sbiw_st or adder_sets_extended_flags)          = '1' else
+    v_flag_adder          when (operation.is_inc or operation.is_dec)                     = '1' else
+    v_flag_shift_right    when (operation.is_lsr or operation.is_ror or operation.is_asr) = '1' else
+    '0';
+                       
 end rtl;
