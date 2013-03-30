@@ -102,6 +102,7 @@ architecture Struct of avr_core is
   signal bit_test_op_out : std_logic;
 
   signal alu_flags_out   : flag_set;
+  signal alu_flags_in    : flag_set;
 
   signal sbi_st : std_logic;
   signal cbi_st : std_logic;
@@ -290,26 +291,21 @@ component io_reg_file port map(
   rampz_out  => rampz_out
 );
 
-
 ALU:
-component alu_avr port map(
+entity alu_avr port map(
 
+  --Current operation.
   operation => active_operation,
-  
-  -- Data inputs
+  second_cycle_of_adiw  => adiw_st,     
+  second_cycle_of_sbiw  => sbiw_st,     
+
+  -- Data / flag inputs.
   rd_value => reg_rd_out,
   rr_value => alu_data_r_in,
+  flags_in => to_flag_set(sreg_out),
 
-  alu_c_flag_in => sreg_out(0),
-  alu_z_flag_in => sreg_out(1),
-
-  adiw_st  => adiw_st,     
-  sbiw_st  => sbiw_st,     
-
-  -- Data outputs
-  alu_data_out => alu_data_out,  
-
-  -- Flag outputs
+  -- Data / flag outputs.
+  result => alu_data_out,  
   flags_out => alu_flags_out
 );
 

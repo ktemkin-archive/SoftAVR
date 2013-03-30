@@ -34,7 +34,7 @@ package AVRuCPackage is
   subtype byte is std_logic_vector(7 downto 0);
   subtype word is std_logic_vector(15 downto 0);
 
-  subtype instruction is std_logic_vector(15 downto 0);
+  subtype encoded_instruction is std_logic_vector(15 downto 0);
 
   --
   -- Data types representing addresses in the AVR's various memory spaces.
@@ -58,13 +58,17 @@ package AVRuCPackage is
 
   -- Set of system flags.
   type flag_set is record
-    c : std_ulogic;
-    z : std_ulogic;
-    n : std_ulogic;
-    v : std_ulogic;
-    s : std_ulogic;
     h : std_ulogic;
+    s : std_ulogic;
+    v : std_ulogic;
+    n : std_ulogic;
+    z : std_ulogic;
+    c : std_ulogic;
   end record;
+
+  function to_std_ulogic_vector(flags : flag_set) return std_ulogic_vector;
+  function to_flag_set(flags : std_logic_vector(5 downto 0)) return flag_set;
+
 
   -- Decoded operation, which contains a gamut of "boolean" signals indicating
   -- the operation type decoded from an instruction.
@@ -288,6 +292,25 @@ package	body AVRuCPackage is
     return std_logic_vector(to_unsigned(addr, io_address_width));
   end to_io_address;
 
+
+  --
+  -- Converts a flag_set to a standard logic vector, in the same
+  -- format used for pushing/popping the SREG.
+  -- 
+  function to_std_ulogic_vector(flags : flag_set) return std_ulogic_vector is
+  begin
+    return std_ulogic_vector'(flags.h, flags.s, flags.v, flags.n, flags.z, flags.c);
+  end function;
+
+  --
+  -- Converts a std_ulogic_vector to a flag_set.
+  -- Accepts a vector in (HSVNZC) order; the same order as in the AVR's status register.
+  -- If extra bits are provided (e.g. the I/T bits), they will be ignored.
+  --
+  function to_flag_set(flags : std_logic_vector) return flag_set is
+  begin
+    return flag_set'(h => flags(5), s => flags(4), v => flags(3), n => flags(2), z => flags(1), c => flags(0));
+  end function;
 
   --
   -- Log-base-2 convenience function.

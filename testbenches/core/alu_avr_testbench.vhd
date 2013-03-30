@@ -35,7 +35,7 @@ architecture behavior of alu_avr_testbench is
    --Inputs
    signal op            : decoded_operation := (others => '0');
    signal rd, rr        : byte              := (others => '0');
-   signal c, z          : std_logic         := '0';
+   signal flags_in      : flag_set          := (others => '0');
    signal adiw_st       : std_logic         := '0';
    signal sbiw_st       : std_logic         := '0';
 
@@ -68,8 +68,7 @@ begin
     operation      => op,
     rd_value       => rd,
     rr_value       => rr,
-    alu_c_flag_in  => c,
-    alu_z_flag_in  => z,
+    flags_in       => flags_in,
     adiw_st        => adiw_st,
     sbiw_st        => sbiw_st,
     alu_data_out   => alu_data_out,
@@ -81,7 +80,7 @@ begin
   begin		
 
     -- Flag order is the same as in the SREG, HSVNZC.
-    c <= '1';
+    flags_in.c <= '1';
 
     -- ADD / ADDI
     op <= (is_add => '1', others => '0');
@@ -155,9 +154,9 @@ begin
     rd <= x"F0"; validate_result_and_flags("ROR $F0", x"F8", "-01100"); 
 
     --ROR (carry clear)
-    c <= '0';
+    flags_in.c <= '0';
     rd <= x"00"; validate_result_and_flags("ROR $00", x"00", "-00010");
-    c <= '1';
+    flags_in.c <= '1';
 
     --ASR
     op <= (is_asr => '1', others => '0');

@@ -18,24 +18,38 @@ use work.AVRucPackage.all;
 -- Generic interface for an AVR ALU.
 --
 entity alu_avr is port(
+
   --"One-hot" record which specifies the current operation.
   --Contains a range of "is_<instruction>" signals, which indicate the type of 
   --the current instruction.
-  operation       : decoded_operation;
+  operation             : in decoded_operation;
 
-  rr_value        : in byte;
-  rd_value        : in byte;
+  --
+  -- Additional signals which indicate whether we're in the second cycle of
+  -- our two-cycle arithmetic instructions. While these are asserted, each
+  -- entry in the decoded operation should be zero.
+  -- 
+  second_cycle_of_adiw  : in std_logic;
+  second_cycle_of_sbiw  : in std_logic;
 
-  alu_c_flag_in   : in std_logic;
-  alu_z_flag_in   : in std_logic;
+  --
+  -- Primary alu operands. 
+  -- Rd is used in every ALU operation;
+  -- Rr is used in all binary operations.
+  -- 
+  rd_value              : in byte;
+  rr_value              : in byte;
 
-  -- OPERATION SIGNALS INPUTS
+  --
+  -- The current value of the system's flags.
+  -- These are used for operations like ADIW.
+  --
+  flags_in              : in flag_set := (others => '0');
 
-  adiw_st         : in std_logic;
-  sbiw_st         : in std_logic;
-
-  -- ALU Result.
-  alu_data_out    : buffer byte;
+  --
+  -- The result of the most recent ALU operation.
+  --
+  result                : buffer byte;
 
   -- ALU "flags".
   --
@@ -106,7 +120,7 @@ begin
     operation.is_sbiw  or 
     operation.is_dec   or 
     operation.is_neg   or
-    sbiw_st;
+    second_cycle_of_sbiw;
 
   --Convenience signal which determines when the adder output should be used.
   use_adder_output <= 
@@ -115,8 +129,8 @@ begin
     operation.is_adc         or 
     operation.is_adiw        or 
     operation.is_inc         or
-    sbiw_st                  or
-    adiw_st;
+    second_cycle_of_sbiw                  or
+    second_cycle_of_adiw;
 
   --Convenience signal which determines when the adder's output should be used to
   --set the half-carry and V flags.
@@ -145,7 +159,7 @@ begin
   --Convenience signals which determine whether the operation is a carry operation, and whether it uses the
   --current value of the carry flag.
   is_carry_operation <= operation.is_adc or operation.is_sbc or operation.is_sbci or operation.is_cpc;
-  operation_uses_carry <= is_carry_operation or adiw_st or sbiw_st or operation.is_ror; 
+  operation_uses_carry <= is_carry_operation or second_cycle_of_adiw or second_cycle_of_sbiw or operation.is_ror; 
 
   --Convenience signal which indicates whether the current operation is only capable of clearing the Z flag.
   --This is used to allow multi-byte "chaining" operations to leave the Z flag untounced on zero.
@@ -159,7 +173,7 @@ begin
                               
   --Set the carry in to the LSB of our carry adder to the carry in,
   --or zero if the operation does not use the carry.
-  adder_carry_in(0) <= alu_c_flag_in and operation_uses_carry;
+  adder_carry_in(0) <= flags_in.c and operation_uses_carry;
 
   -- Left hand operand. When subtracting, this will be the minuend.
   operand_left <=
@@ -245,7 +259,7 @@ begin
   asr_operation <= rd_value(7) & rd_value(7 downto 1);
 
   -- ROR: Rotate Right (through carry)
-  ror_operation <= alu_c_flag_in & rd_value(7 downto 1);
+  ror_operation <= flags_in.c & rd_value(7 downto 1);
 
   -- SWAP: Nibble swap.
   swap_operation <= rd_value(3 downto 0) & rd_value(7 downto 4);
@@ -254,7 +268,7 @@ begin
   --
   -- ALU output "multiplexer".
   --
-  alu_data_out <= 
+  result <= 
     adder_out(7 downto 0)     when use_adder_output  = '1' else
     com_operation             when operation.is_com  = '1' else
     and_operation             when operation.is_and  = '1' else
@@ -276,11 +290,11 @@ begin
   flags_out.s <= flags_out.n xor flags_out.v;
 
   -- N (Negative flag)
-  flags_out.n <= alu_data_out(7);
+  flags_out.n <= result(7);
 
   -- Z (Zero flag)
-  result_is_zero <= not or_reduce(alu_data_out);
-  flags_out.z <= result_is_zero and alu_z_flag_in when only_clears_z_flag = '1' else result_is_zero;
+  result_is_zero <= not or_reduce(result);
+  flags_out.z <= result_is_zero and flags_in.z when only_clears_z_flag = '1' else result_is_zero;
 
   -- H (Half Carry)
   flags_out.h <= adder_carry_in(4) when adder_sets_extended_flags = '1' else '0';
@@ -294,7 +308,7 @@ begin
 
   -- V (Two's compliment overflow)
   flags_out.v <= 
-    v_flag_adder          when (adiw_st or sbiw_st or adder_sets_extended_flags)          = '1' else
+    v_flag_adder          when (second_cycle_of_adiw or second_cycle_of_sbiw or adder_sets_extended_flags)          = '1' else
     v_flag_adder          when (operation.is_inc or operation.is_dec)                     = '1' else
     v_flag_shift_right    when (operation.is_lsr or operation.is_ror or operation.is_asr) = '1' else
     '0';
