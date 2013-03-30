@@ -16,22 +16,6 @@ end alu_avr_testbench;
  
 architecture behavior of alu_avr_testbench is 
  
-    -- Component Declaration for the Unit Under Test (UUT)
- 
-    component alu_avr
-    port(
-         operation     : in  decoded_operation;
-         rr_value      : in  byte;
-         rd_value      : in  byte;
-         alu_c_flag_in : in  std_logic;
-         alu_z_flag_in : in  std_logic;
-         adiw_st       : in  std_logic;
-         sbiw_st       : in  std_logic;
-         alu_data_out  : buffer byte;
-         flags_out     : buffer flag_set
-        );
-    end component;
-
    --Inputs
    signal op            : decoded_operation := (others => '0');
    signal rd, rr        : byte              := (others => '0');
@@ -64,15 +48,15 @@ architecture behavior of alu_avr_testbench is
 begin
 
   -- Instantiate the Unit Under Test (UUT)
-  uut: alu_avr port map (
-    operation      => op,
-    rd_value       => rd,
-    rr_value       => rr,
-    flags_in       => flags_in,
-    adiw_st        => adiw_st,
-    sbiw_st        => sbiw_st,
-    alu_data_out   => alu_data_out,
-    flags_out      => flags
+  uut: entity work.alu_avr port map (
+    operation            => op,
+    rd_value             => rd,
+    rr_value             => rr,
+    flags_in             => flags_in,
+    second_cycle_of_adiw => adiw_st,
+    second_cycle_of_sbiw => sbiw_st,
+    result               => alu_data_out,
+    flags_out            => flags
   );
 
   -- Stimulus process
