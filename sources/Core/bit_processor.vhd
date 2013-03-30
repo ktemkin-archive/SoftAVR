@@ -12,6 +12,10 @@ use IEEE.std_logic_unsigned.all;
 
 use work.AVRuCPackage.all;
 
+library avr;
+use avr.instruction.all;
+use avr.flags.all;
+
 entity bit_processor is port(
   operation       : in decoded_operation;
 

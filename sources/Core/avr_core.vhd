@@ -10,7 +10,10 @@
 library IEEE;
 use IEEE.std_logic_1164.all;
 
-use Work.AVR_Core_CompPack.all;
+library avr;
+use avr.instruction.all;
+use avr.flags.all;
+
 use WORK.AVRucPackage.all;
 
 entity AVR_Core is port(
@@ -110,11 +113,11 @@ architecture Struct of avr_core is
 begin
 
 FETCH_DECODER:
-component pm_fetch_dec port map(
+entity pm_fetch_dec port map(
   -- Clock and reset
-  cp2      => cp2,
-  cp2en    => cp2en,
-  ireset   => ireset,
+  clk        => cp2,
+  clk_enable => cp2en,
+  reset      => ireset,
   -- JTAG OCD support
   valid_instr => valid_instr,
   insert_nop  => insert_nop,
@@ -201,7 +204,7 @@ component pm_fetch_dec port map(
 
 
 REGISTERS:
-component reg_file port map (
+entity reg_file port map (
   --Clock and reset
   cp2         => cp2,
   cp2en       => cp2en,
@@ -224,7 +227,7 @@ component reg_file port map (
 
 
 BIT_ALU:
-component bit_processor port map(
+entity bit_processor port map(
 
   operation => active_operation,
 
@@ -254,7 +257,7 @@ component bit_processor port map(
 
 
 io_dec_Inst:
-component io_adr_dec port map (
+entity io_adr_dec port map (
   adr          => adr,
   iore         => iore,
   dbusin_int   => dbusin_int,			-- LOCAL DATA BUS OUTPUT
@@ -267,7 +270,7 @@ component io_adr_dec port map (
 );
 
 IORegs_Inst: 
-component io_reg_file port map(
+entity io_reg_file port map(
 
   --Clock and reset
   cp2        => cp2,

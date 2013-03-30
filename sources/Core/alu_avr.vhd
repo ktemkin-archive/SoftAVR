@@ -12,6 +12,10 @@ use IEEE.std_logic_1164.all;
 use IEEE.std_logic_misc.all;
 use IEEE.numeric_std.all;
 
+library avr;
+use avr.instruction.all;
+use avr.flags.all;
+
 use work.AVRucPackage.all;
 
 -- 
@@ -22,34 +26,34 @@ entity alu_avr is port(
   --"One-hot" record which specifies the current operation.
   --Contains a range of "is_<instruction>" signals, which indicate the type of 
   --the current instruction.
-  operation             : in decoded_operation;
+  operation : in decoded_operation;
 
   --
   -- Additional signals which indicate whether we're in the second cycle of
   -- our two-cycle arithmetic instructions. While these are asserted, each
   -- entry in the decoded operation should be zero.
   -- 
-  second_cycle_of_adiw  : in std_logic;
-  second_cycle_of_sbiw  : in std_logic;
+  second_cycle_of_adiw : in std_logic;
+  second_cycle_of_sbiw : in std_logic;
 
   --
   -- Primary alu operands. 
   -- Rd is used in every ALU operation;
   -- Rr is used in all binary operations.
   -- 
-  rd_value              : in byte;
-  rr_value              : in byte;
+  rd_value : in byte;
+  rr_value : in byte;
 
   --
   -- The current value of the system's flags.
   -- These are used for operations like ADIW.
   --
-  flags_in              : in flag_set := (others => '0');
+  flags_in : in flag_set := (others => '0');
 
   --
   -- The result of the most recent ALU operation.
   --
-  result                : buffer byte;
+  result : buffer byte;
 
   -- ALU "flags".
   --
@@ -57,7 +61,7 @@ entity alu_avr is port(
   -- and the next state of a given flag _if_ a relevant instruction is
   -- being performed. When an unrelated operation is being executed,
   -- these values are meaningless.
-  flags_out       : buffer flag_set
+  flags_out : buffer flag_set
 );
 
 end alu_avr;
