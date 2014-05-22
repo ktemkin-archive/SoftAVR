@@ -4,14 +4,14 @@
 --   ____  ____ 
 --  /   /\/   / 
 -- /___/  \  /    Vendor: Xilinx 
--- \   \   \/     Version : 14.1
+-- \   \   \/     Version : 14.4
 --  \   \         Application : xaw2vhdl
 --  /   /         Filename : DCM32to16.vhd
--- /___/   /\     Timestamp : 12/26/2012 21:01:44
+-- /___/   /\     Timestamp : 05/21/2014 23:23:58
 -- \   \  /  \ 
 --  \___\/\___\ 
 --
---Command: xaw2vhdl-st /home/ktemkin/Projects/SoftAVR/scripts/XilinxISE/ipcore_dir/DCM32to16.xaw /home/ktemkin/Projects/SoftAVR/scripts/XilinxISE/ipcore_dir/DCM32to16
+--Command: xaw2vhdl-st /home/ktemkin/Documents/Projects/SoftAVR/scripts/XilinxISE/ipcore_dir/DCM32to16.xaw /home/ktemkin/Documents/Projects/SoftAVR/scripts/XilinxISE/ipcore_dir/DCM32to16
 --Design Name: DCM32to16
 --Device: xc3s250e-4vq100
 --

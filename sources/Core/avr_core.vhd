@@ -47,10 +47,10 @@ entity AVR_Core is port(
   irqackad    : out std_logic_vector(4 downto 0);
   --Sleep Control
   sleepi	    : out std_logic;
-  irqok	    : out std_logic;
+  irqok	      : out std_logic;
   globint	    : out std_logic;
   --Watchdog
-  wdri	    : out std_logic
+  wdri	      : out std_logic
 );
 end AVR_Core;
 
@@ -118,11 +118,13 @@ entity pm_fetch_dec port map(
   clk        => cp2,
   clk_enable => cp2en,
   reset      => ireset,
+
   -- JTAG OCD support
   valid_instr => valid_instr,
   insert_nop  => insert_nop,
   block_irq   => block_irq,
   change_flow => change_flow,
+
   -- Program memory
   pc       => pc,    
   inst     => inst,
@@ -268,6 +270,7 @@ entity io_adr_dec port map (
   sreg_out     => sreg_out,
   rampz_out    => rampz_out
 );
+
 
 IORegs_Inst: 
 entity io_reg_file port map(

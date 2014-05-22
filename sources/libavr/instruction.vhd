@@ -18,7 +18,7 @@ package instruction is
   -- Function that determines whether a given encoded instruction matches an instruction specification.
   -- The instruction specification should include Don't Cares for all bits that vary inside of an instruction.
   --
-  function matches_form(instruction : encoded_instruction; general_form : encoded_instruction) return std_ulogic;
+  function matches_form(instruction : encoded_instruction; general_form : encoded_instruction) return std_logic;
 
   --
   -- Opcode "forms" for each of the AVR operations.
@@ -107,93 +107,93 @@ package instruction is
   -- Decoded operation, which contains a gamut of "boolean" signals indicating
   -- the operation type decoded from an instruction.
   type decoded_operation is record
-     is_adc     : std_ulogic; -- INSTRUCTION ADC
-     is_add     : std_ulogic; -- INSTRUCTION ADD
-     is_adiw    : std_ulogic; -- INSTRUCTION ADIW
-     is_and     : std_ulogic; -- INSTRUCTION AND
-     is_andi    : std_ulogic; -- INSTRUCTION ANDI
-     is_asr     : std_ulogic; -- INSTRUCTION ASR
+     is_adc     : std_logic; -- INSTRUCTION ADC
+     is_add     : std_logic; -- INSTRUCTION ADD
+     is_adiw    : std_logic; -- INSTRUCTION ADIW
+     is_and     : std_logic; -- INSTRUCTION AND
+     is_andi    : std_logic; -- INSTRUCTION ANDI
+     is_asr     : std_logic; -- INSTRUCTION ASR
 
-     is_bclr    : std_ulogic; -- INSTRUCTION BCLR
-     is_bld     : std_ulogic; -- INSTRUCTION BLD
-     is_brbc    : std_ulogic; -- INSTRUCTION BRBC
-     is_brbs    : std_ulogic; -- INSTRUCTION BRBS
-     is_bset    : std_ulogic; -- INSTRUCTION BSET
-     is_bst     : std_ulogic; -- INSTRUCTION BST
+     is_bclr    : std_logic; -- INSTRUCTION BCLR
+     is_bld     : std_logic; -- INSTRUCTION BLD
+     is_brbc    : std_logic; -- INSTRUCTION BRBC
+     is_brbs    : std_logic; -- INSTRUCTION BRBS
+     is_bset    : std_logic; -- INSTRUCTION BSET
+     is_bst     : std_logic; -- INSTRUCTION BST
 
-     is_call    : std_ulogic; -- INSTRUCTION CALL
-     is_cbi     : std_ulogic; -- INSTRUCTION CBI
-     is_com     : std_ulogic; -- INSTRUCTION COM
-     is_cp      : std_ulogic; -- INSTRUCTION CP
-     is_cpc     : std_ulogic; -- INSTRUCTION CPC
-     is_cpi     : std_ulogic; -- INSTRUCTION CPI
-     is_cpse    : std_ulogic; -- INSTRUCTION CPSE
+     is_call    : std_logic; -- INSTRUCTION CALL
+     is_cbi     : std_logic; -- INSTRUCTION CBI
+     is_com     : std_logic; -- INSTRUCTION COM
+     is_cp      : std_logic; -- INSTRUCTION CP
+     is_cpc     : std_logic; -- INSTRUCTION CPC
+     is_cpi     : std_logic; -- INSTRUCTION CPI
+     is_cpse    : std_logic; -- INSTRUCTION CPSE
 
-     is_dec     : std_ulogic; -- INSTRUCTION DEC
+     is_dec     : std_logic; -- INSTRUCTION DEC
 
-     is_elpm    : std_ulogic; -- INSTRUCTION ELPM
-     is_eor     : std_ulogic; -- INSTRUCTION EOR
+     is_elpm    : std_logic; -- INSTRUCTION ELPM
+     is_eor     : std_logic; -- INSTRUCTION EOR
 
-     is_icall   : std_ulogic; -- INSTRUCTION ICALL
-     is_ijmp    : std_ulogic; -- INSTRUCTION IJMP
+     is_icall   : std_logic; -- INSTRUCTION ICALL
+     is_ijmp    : std_logic; -- INSTRUCTION IJMP
 
-     is_in      : std_ulogic; -- INSTRUCTION IN
-     is_inc     : std_ulogic; -- INSTRUCTION INC
+     is_in      : std_logic; -- INSTRUCTION IN
+     is_inc     : std_logic; -- INSTRUCTION INC
 
-     is_jmp     : std_ulogic; -- INSTRUCTION JMP
+     is_jmp     : std_logic; -- INSTRUCTION JMP
 
-     is_ld_x    : std_ulogic; -- INSTRUCTION LD Rx,X ; LD Rx,X+ ;LD Rx,-X
-     is_ld_y    : std_ulogic; -- INSTRUCTION LD Rx,Y ; LD Rx,Y+ ;LD Rx,-Y
-     is_ldd_y   : std_ulogic; -- INSTRUCTION LDD Rx,Y+q
-     is_ld_z    : std_ulogic; -- INSTRUCTION LD Rx,Z ; LD Rx,Z+ ;LD Rx,-Z
-     is_ldd_z   : std_ulogic; -- INSTRUCTION LDD Rx,Z+q
+     is_ld_x    : std_logic; -- INSTRUCTION LD Rx,X ; LD Rx,X+ ;LD Rx,-X
+     is_ld_y    : std_logic; -- INSTRUCTION LD Rx,Y ; LD Rx,Y+ ;LD Rx,-Y
+     is_ldd_y   : std_logic; -- INSTRUCTION LDD Rx,Y+q
+     is_ld_z    : std_logic; -- INSTRUCTION LD Rx,Z ; LD Rx,Z+ ;LD Rx,-Z
+     is_ldd_z   : std_logic; -- INSTRUCTION LDD Rx,Z+q
 
-     is_ldi     : std_ulogic; -- INSTRUCTION LDI
-     is_lds     : std_ulogic; -- INSTRUCTION LDS
-     is_lpm     : std_ulogic; -- INSTRUCTION LPM
-     is_lsr     : std_ulogic; -- INSTRUCTION LSR
+     is_ldi     : std_logic; -- INSTRUCTION LDI
+     is_lds     : std_logic; -- INSTRUCTION LDS
+     is_lpm     : std_logic; -- INSTRUCTION LPM
+     is_lsr     : std_logic; -- INSTRUCTION LSR
 
-     is_mov     : std_ulogic; -- INSTRUCTION MOV
-     is_mul     : std_ulogic; -- INSTRUCTION MUL
+     is_mov     : std_logic; -- INSTRUCTION MOV
+     is_mul     : std_logic; -- INSTRUCTION MUL
 
-     is_neg     : std_ulogic; -- INSTRUCTION NEG
-     is_nop     : std_ulogic; -- INSTRUCTION NOP
+     is_neg     : std_logic; -- INSTRUCTION NEG
+     is_nop     : std_logic; -- INSTRUCTION NOP
 
-     is_or      : std_ulogic; -- INSTRUCTION OR
-     is_ori     : std_ulogic; -- INSTRUCTION ORI
-     is_out     : std_ulogic; -- INSTRUCTION OUT
+     is_or      : std_logic; -- INSTRUCTION OR
+     is_ori     : std_logic; -- INSTRUCTION ORI
+     is_out     : std_logic; -- INSTRUCTION OUT
 
-     is_pop     : std_ulogic; -- INSTRUCTION POP
-     is_push    : std_ulogic; -- INSTRUCTION PUSH
+     is_pop     : std_logic; -- INSTRUCTION POP
+     is_push    : std_logic; -- INSTRUCTION PUSH
 
-     is_rcall   : std_ulogic; -- INSTRUCTION RCALL
-     is_ret     : std_ulogic; -- INSTRUCTION RET
-     is_reti    : std_ulogic; -- INSTRUCTION RETI
-     is_rjmp    : std_ulogic; -- INSTRUCTION RJMP
-     is_ror     : std_ulogic; -- INSTRUCTION ROR
+     is_rcall   : std_logic; -- INSTRUCTION RCALL
+     is_ret     : std_logic; -- INSTRUCTION RET
+     is_reti    : std_logic; -- INSTRUCTION RETI
+     is_rjmp    : std_logic; -- INSTRUCTION RJMP
+     is_ror     : std_logic; -- INSTRUCTION ROR
 
-     is_sbc     : std_ulogic; -- INSTRUCTION SBC
-     is_sbci    : std_ulogic; -- INSTRUCTION SBCI
-     is_sbi     : std_ulogic; -- INSTRUCTION SBI
-     is_sbic    : std_ulogic; -- INSTRUCTION SBIC
-     is_sbis    : std_ulogic; -- INSTRUCTION SBIS
-     is_sbiw    : std_ulogic; -- INSTRUCTION SBIW
-     is_sbrc    : std_ulogic; -- INSTRUCTION SBRC
-     is_sbrs    : std_ulogic; -- INSTRUCTION SBRS
-     is_sleep   : std_ulogic; -- INSTRUCTION SLEEP
+     is_sbc     : std_logic; -- INSTRUCTION SBC
+     is_sbci    : std_logic; -- INSTRUCTION SBCI
+     is_sbi     : std_logic; -- INSTRUCTION SBI
+     is_sbic    : std_logic; -- INSTRUCTION SBIC
+     is_sbis    : std_logic; -- INSTRUCTION SBIS
+     is_sbiw    : std_logic; -- INSTRUCTION SBIW
+     is_sbrc    : std_logic; -- INSTRUCTION SBRC
+     is_sbrs    : std_logic; -- INSTRUCTION SBRS
+     is_sleep   : std_logic; -- INSTRUCTION SLEEP
 
-     is_st_x    : std_ulogic; -- INSTRUCTION LD X,Rx ; LD X+,Rx ;LD -X,Rx
-     is_st_y    : std_ulogic; -- INSTRUCTION LD Y,Rx ; LD Y+,Rx ;LD -Y,Rx
-     is_std_y   : std_ulogic; -- INSTRUCTION LDD Y+q,Rx
-     is_st_z    : std_ulogic; -- INSTRUCTION LD Z,Rx ; LD Z+,Rx ;LD -Z,Rx
-     is_std_z   : std_ulogic; -- INSTRUCTION LDD Z+q,Rx
+     is_st_x    : std_logic; -- INSTRUCTION LD X,Rx ; LD X+,Rx ;LD -X,Rx
+     is_st_y    : std_logic; -- INSTRUCTION LD Y,Rx ; LD Y+,Rx ;LD -Y,Rx
+     is_std_y   : std_logic; -- INSTRUCTION LDD Y+q,Rx
+     is_st_z    : std_logic; -- INSTRUCTION LD Z,Rx ; LD Z+,Rx ;LD -Z,Rx
+     is_std_z   : std_logic; -- INSTRUCTION LDD Z+q,Rx
 
-     is_sts     : std_ulogic; -- INSTRUCTION STS
-     is_sub     : std_ulogic; -- INSTRUCTION SUB
-     is_subi    : std_ulogic; -- INSTRUCTION SUBI
-     is_swap    : std_ulogic; -- INSTRUCTION SWAP
+     is_sts     : std_logic; -- INSTRUCTION STS
+     is_sub     : std_logic; -- INSTRUCTION SUB
+     is_subi    : std_logic; -- INSTRUCTION SUBI
+     is_swap    : std_logic; -- INSTRUCTION SWAP
 
-     is_wdr     : std_ulogic; -- INSTRUCTION WDR
+     is_wdr     : std_logic; -- INSTRUCTION WDR
   end record;
 
 
@@ -205,7 +205,7 @@ package body instruction is
   -- Function that determines whether a given encoded instruction matches an instruction specification.
   -- The instruction specification should include Don't Cares for all bits that vary inside of an instruction.
   --
-  function matches_form(instruction : encoded_instruction; general_form : encoded_instruction) return std_ulogic is
+  function matches_form(instruction : encoded_instruction; general_form : encoded_instruction) return std_logic is
   begin
    
     --If the instruction matches the general form, then return one; otherwise, return '0'.

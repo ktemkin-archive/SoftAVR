@@ -1,20 +1,11 @@
 --************************************************************************************************
---  PM_FETCH_DEC(internal module) for AVR core
---	Version 2.6! (Special version for the JTAG OCD)
---  Designed by Ruslan Lepetenok 14.11.2001
---  Modified 31.05.06
---  Modification:
---  Registered ramre/ramwe outputs
---  cpu_busy logic modified(affects RCALL/ICALL/CALL instruction interract with interrupt)
---  SLEEP and CLRWDT instructions support was added
---  V-flag bug fixed (AND/ANDI/OR/ORI/EOR)
---  V-flag bug fixed (ADIW/SBIW)
---  Unused outputs(sreg_bit_num[2..0],active_operation.is_sbi_out,active_operation.is_cbi_out,active_operation.is_bld_out) were removed.
---  Output alu_data_d_in[7..0] was removed.
---  Gloabal clock enable(clk_enable) was added  
---  cpu_busy(push/pop) + irq bug was fixed 14.07.05
---  BRXX+IRQ interaction was modified -> cpu_busy
---  LDS/STS now requires only two cycles for execution (13.01.06 -> last modificatioon)
+--  Primary fetch/decode unit (main decoder).
+--  [In desperate need of a refactor.]
+--  (ATMega103 compatible.)
+--
+--  Authors:
+--      -- Kyle J. Temkin, Binghamton University, <ktemkin@binghamton.edu>
+--      -- Ruslan Leptenok, original core designer
 --************************************************************************************************
 
 library IEEE;
@@ -31,8 +22,8 @@ use work.AVRuCPackage.all;
 entity pm_fetch_dec is port(
   -- Clock and reset
   clk              : in  std_logic;
-  clk_enable            : in  std_logic; 
-  reset           : in  std_logic;
+  clk_enable       : in  std_logic; 
+  reset            : in  std_logic;
 
   -- JTAG OCD support
   valid_instr      : out  std_logic;
@@ -45,12 +36,12 @@ entity pm_fetch_dec is port(
   inst             : in  encoded_instruction;
 
   -- I/O control
-  adr              : out std_logic_vector (15 downto 0); 	
+  adr              : out std_logic_vector (15 downto 0);
   iore             : out std_logic;                       
-  iowe             : out std_logic;						
+  iowe             : out std_logic;
 
   -- Data memory control
-  ramadr           : out std_logic_vector (15 downto 0);
+  ramadr           : buffer std_logic_vector (15 downto 0);
   ramre            : out std_logic;
   ramwe            : out std_logic;
   cpuwait          : in  std_logic;
@@ -133,6 +124,8 @@ architecture RTL of pm_fetch_dec is
   signal ramadr_reg_in  : std_logic_vector(15 downto 0); -- INPUT OF THE ADDRESS REGISTER
   signal ramadr_reg_en  : std_logic;                     -- ADRESS REGISTER CLOCK ENABLE SIGNAL
 
+  signal ram_addr_register_load : std_ulogic;
+
   signal irqack_int     : std_logic;
   signal irqackad_int   : std_logic_vector(irqackad'range);
 
@@ -141,7 +134,7 @@ architecture RTL of pm_fetch_dec is
   -- ####################################################
 
   -- NEW SIGNALS
-  signal   instruction_has_two_words       : std_ulogic;                    -- CALL/JMP/STS/LDS INSTRUCTION INDICATOR
+  signal   instruction_has_two_words       : std_logic;                    -- CALL/JMP/STS/LDS INSTRUCTION INDICATOR
 
   signal   ram_adr_int         : std_logic_vector (15 downto 0);
   constant const_ram_to_reg    : std_logic_vector := "00000000000";  -- LD/LDS/LDD/ST/STS/STD ADDRESSING GENERAL PURPOSE REGISTER (R0-R31) 0x00..0x19
@@ -264,7 +257,7 @@ architecture RTL of pm_fetch_dec is
   signal pop_st	      : std_logic;
 
   -- INTERNAL STATE MACHINES
-  signal nop_insert_st  : std_logic;
+  signal is_wait_state  : std_logic;
   signal cpu_busy       : std_logic;
 
   -- INTERNAL COPIES OF OUTPUTS
@@ -272,14 +265,13 @@ architecture RTL of pm_fetch_dec is
   signal adr_int             : std_logic_vector (15 downto 0);
   signal iore_int 		   : std_logic;
   signal iowe_int            : std_logic;
-  signal ramadr_int          : std_logic_vector (15 downto 0);
   signal ramre_int           : std_logic;
   signal ramwe_int           : std_logic;
   signal dbusout_int         : std_logic_vector (7 downto 0);
 
   -- COMMAND REGISTER
-  signal instruction_reg      : std_logic_vector (15 downto 0); -- OUTPUT OF THE INSTRUCTION REGISTER
-  signal instruction_code_reg : std_logic_vector (15 downto 0); -- OUTPUT OF THE INSTRUCTION REGISTER WITH NOP INSERTION
+  signal instruction_reg      : encoded_instruction; -- OUTPUT OF THE INSTRUCTION REGISTER
+  signal instruction_code_reg : encoded_instruction; -- OUTPUT OF THE INSTRUCTION REGISTER WITH NOP INSERTION
   signal instruction_reg_ena  : std_logic;                               -- CLOCK ENABLE
 
 
@@ -318,31 +310,25 @@ architecture RTL of pm_fetch_dec is
   signal is_post_increment_operation   :  std_logic; -- POST INCREMENT FLAG FOR LD,ST INSTRUCTIONS
   signal is_pre_decrement_operation    :  std_logic; -- PRE DECREMENT  FLAG FOR LD,ST INSTRUCTIONS
 
+
+  signal load_program_counter_high_fr : std_logic; --RENAME
+
   -- ##################################################
 
   -- SREG FLAGS WRITE ENABLE SIGNALS
 
-  alias sreg_c_wr_en  : std_logic is sreg_fl_wr_en(0);
-  alias sreg_z_wr_en  : std_logic is sreg_fl_wr_en(1);
-  alias sreg_n_wr_en  : std_logic is sreg_fl_wr_en(2);
-  alias sreg_v_wr_en  : std_logic is sreg_fl_wr_en(3);
-  alias sreg_s_wr_en  : std_logic is sreg_fl_wr_en(4);
-  alias sreg_h_wr_en  : std_logic is sreg_fl_wr_en(5);
-  alias sreg_t_wr_en  : std_logic is sreg_fl_wr_en(6);
-  alias sreg_i_wr_en  : std_logic is sreg_fl_wr_en(7);
-
-  signal sreg_bop_wr_en : std_logic_vector (7 downto 0);                
-
+  signal flags_affected : extended_flag_set;
+  signal targets_i_flag : std_logic;
   signal sreg_adr_eq  : std_logic;
   -- &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 
-  signal next_cycle_requires_rd : std_ulogic;
+  signal next_cycle_requires_rd : std_logic;
   
 begin
 
   --Main instruction register: loads the current instruction on each rising edge of the system clock.
-  instruction_reg <= (others => '0') when reset = '0' else inst when rising_edge(clk) and clk_enable = '1';
+  INSTRUCTION_REGISTER: entity generic_register port map(clk => clk, ld => clk_enable, reset => reset, d => std_logic_vector(inst), q => instruction_reg);
 
   -- Determine if the current instruction is a two-word instruction.
   -- If this is the case, we'll have to load in both words.
@@ -399,17 +385,32 @@ begin
 
   -- NOP INSERTION
 
-  --instruction_code_reg <= instruction_reg when nop_insert_st='0' else (others => '0');
-  instruction_code_reg <= (others => '0') when (nop_insert_st='1') else -- NOP
-                          instruction_reg;												-- Instruction 
+  is_wait_state <= 
+    adiw_st or
+    sbiw_st or 
+    cbi_st or 
+    sbi_st or 
+    rjmp_st or 
+    ijmp_st or 
+    pop_st or 
+    push_st or
+    brxx_st or 
+    ld_st or 
+    st_st or 
+    ncall_st0 or 
+    nirq_st0 or 
+    nret_st0 or 
+    nreti_st0 or 
+    nlpm_st0 or 
+    njmp_st0 or
+    nrcall_st0 or
+    nicall_st0 or 
+    sts_st or 
+    lds_st or 
+    nskip_inst_st0;
+
+  instruction_code_reg <= OPCODE_NOP when is_wait_state = '1' else instruction_reg;		
     
-  nop_insert_st <= adiw_st or sbiw_st or cbi_st or sbi_st or rjmp_st or ijmp_st or pop_st or push_st or
-                brxx_st or ld_st or st_st or ncall_st0 or nirq_st0 or nret_st0 or nreti_st0 or nlpm_st0 or njmp_st0 or
-                nrcall_st0 or nicall_st0 or sts_st or lds_st or nskip_inst_st0;
-
-          
-  -- INSTRUCTION DECODER (CONNECTED AFTER NOP INSERTION LOGIC)
-
   INSTR_DECODER:
   entity instruction_decoder port map(
     instruction => instruction_code_reg,
@@ -427,17 +428,39 @@ begin
   -- ##########################################################################################################
 
   -- WRITE ENABLE SIGNALS FOR ramadr_reg
-  ramadr_reg_en <= active_operation.is_ld_x or active_operation.is_ld_y or active_operation.is_ldd_y or active_operation.is_ld_z or active_operation.is_ldd_z or active_operation.is_lds or    -- LD/LDD/LDS(two cycle execution) 
-                 active_operation.is_st_x or active_operation.is_st_y or active_operation.is_std_y or active_operation.is_st_z or active_operation.is_std_z or active_operation.is_sts or    -- ST/STS/STS(two cycle execution)
-         active_operation.is_push or active_operation.is_pop or
-         active_operation.is_rcall or (rcall_st1 and not cpuwait) or active_operation.is_icall or (icall_st1 and not cpuwait) or -- RCALL/ICALL
-         call_st1 or  (call_st2 and not cpuwait) or irq_st1 or (irq_st2 and not cpuwait) or      -- CALL/IRQ
-         active_operation.is_ret or (ret_st1 and not cpuwait ) or active_operation.is_reti or (reti_st1 and not cpuwait);		 -- RET/RETI  -- ??
+  ramadr_reg_en <= 
+    active_operation.is_ld_x     or
+    active_operation.is_ld_y     or
+    active_operation.is_ldd_y    or
+    active_operation.is_ld_z     or
+    active_operation.is_ldd_z    or
+    active_operation.is_lds      or -- LD/LDD/LDS(two cycle execution)
+    active_operation.is_st_x     or
+    active_operation.is_st_y     or
+    active_operation.is_std_y    or
+    active_operation.is_st_z     or
+    active_operation.is_std_z    or
+    active_operation.is_sts      or -- ST/STS/STS(two cycle execution)
+    active_operation.is_push     or
+    active_operation.is_pop      or
+    active_operation.is_rcall    or
+    (rcall_st1 and not cpuwait)  or
+    active_operation.is_icall    or
+    (icall_st1 and not cpuwait)  or -- RCALL/ICALL
+    call_st1                     or
+    (call_st2 and not cpuwait)   or
+    irq_st1                      or
+    (irq_st2 and not cpuwait)    or -- CALL/IRQ
+    active_operation.is_ret      or
+    (ret_st1 and not cpuwait)    or
+    active_operation.is_reti     or
+    (reti_st1 and not cpuwait);		 -- RET/RETI  -- ??
 
 
   -- RAMADR MUX
-  ramadr_reg_in <= sph_out&spl_out when 
-  (active_operation.is_rcall or (rcall_st1 and not cpuwait)or active_operation.is_icall or (icall_st1 and not cpuwait)or  -- RCALL/ICALL
+  ramadr_reg_in <= 
+   sph_out & spl_out when 
+   (active_operation.is_rcall or (rcall_st1 and not cpuwait)or active_operation.is_icall or (icall_st1 and not cpuwait)or  -- RCALL/ICALL
    call_st1  or (call_st2 and not cpuwait) or irq_st1   or (irq_st2 and not cpuwait)  or  -- CALL/IRQ
    active_operation.is_push )='1' else 	                                                                  -- PUSH
    (sph_out&spl_out)+1 when (active_operation.is_ret or (ret_st1 and not cpuwait)  or active_operation.is_reti  or (reti_st1 and not cpuwait) or active_operation.is_pop)='1' else  -- RET/RETI/POP
@@ -447,20 +470,8 @@ begin
     
                 
   -- ADDRESS REGISTER								
-  ramadr_reg:process(clk,reset)
-  begin
-  if reset='0' then 
-  ramadr_int <= (others => '0');
-  elsif(clk='1' and clk'event) then
-  if (clk_enable='1') then 							  -- Clock enable
-  if (ramadr_reg_en='1') then                            
-   ramadr_int <= ramadr_reg_in;
-  end if;
-  end if;
-  end if;
-  end process;
-
-  ramadr <= ramadr_int;
+  ram_addr_register_load <= clk_enable and ramadr_reg_en;
+  RAM_ADDR_REGISTER: entity generic_register port map(clk => clk, ld => ram_addr_register_load, reset => reset, d => ramadr_reg_in, q => ramadr);
 
   -- GENERAL PURPOSE REGISTERS ADDRESSING FLAG FOR ST/STD/STS INSTRUCTIONS
   gp_reg_adr:process(clk,reset)
@@ -544,10 +555,10 @@ begin
                adiw_sbiw_encoder_out     when (active_operation.is_adiw or active_operation.is_sbiw)='1' else
                adiw_sbiw_encoder_mux_out when (adiw_st or sbiw_st)='1' else
          rd_latched      when (((st_st or sts_st) and not reg_file_adr_space) or ld_st or lds_st or pop_st)='1' else
-               ramadr_int(4 downto 0)    when ((st_st or sts_st) and reg_file_adr_space)='1'else --!!??
+               ramadr(4 downto 0)    when ((st_st or sts_st) and reg_file_adr_space)='1'else --!!??
          rd;
 
-  reg_rr_adr <= ramadr_int(4 downto 0) when ((ld_st or lds_st) and reg_file_adr_space)='1'else --!!??
+  reg_rr_adr <= ramadr(4 downto 0) when ((ld_st or lds_st) and reg_file_adr_space)='1'else --!!??
             rd_latched   when ((st_st or sts_st) and reg_file_adr_space)='1'else --!!??
             rr;		   
 
@@ -573,14 +584,15 @@ begin
   adr_int <= "0000000000" & io_port_address_6bit when (active_operation.is_in or active_operation.is_out) = '1' else                          -- IN/OUT INSTRUCTIONS  
            "0000000000" &'0'&io_port_address_5bit when (active_operation.is_cbi or active_operation.is_sbi or active_operation.is_sbic or active_operation.is_sbis) ='1'    else  -- CBI/SBI (READ PHASE) + SBIS/SBIC
            "0000000000" &'0'&cbi_sbi_io_adr_tmp when (cbi_st or sbi_st)='1' else	-- CBI/SBI (WRITE PHASE)
-            ramadr_int-x"20"; --(6)&ramadr_int(4 downto 0);                                                   -- LD/LDS/LDD/ST/STS/STD
+            ramadr-x"20"; --(6)&ramadr_int(4 downto 0);                                                   -- LD/LDS/LDD/ST/STS/STD
 
   -- ramre LOGIC (16 BIT ADDRESS ramadr[15..0] FOR DATA RAM (64*1024-64-32 LOCATIONS))
   --ramre_int <= not(reg_file_adr_space or io_file_adr_space) and 
   --            (ld_st or lds_st2 or pop_st or                    -- LD/LDD/LDS/POP/
   --             ret_st1 or ret_st2 or reti_st1 or reti_st2);     -- RET/RETI
 
-  DataMemoryRead:process(clk,reset)
+  DataMemoryRead:
+  process(clk,reset)
   begin
   if reset='0' then -- Reset
   ramre_int <= '0';
@@ -691,19 +703,10 @@ begin
   -- +++++++++++++++++++++++++++++++++++++++ PROGRAM COUNTER ++++++++++++++++++++++++++++++++++++++++++++++++++
   -- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  program_counter_high_store:process(clk,reset)
-  begin
-  if reset='0' then                         -- RESET
-  program_counter_high_fr <=(others => '0');
-  elsif (clk='1' and clk'event) then       -- CLOCK
-  if (clk_enable='1') then 							  -- Clock enable
-  if (active_operation.is_rcall or active_operation.is_icall or call_st1 or irq_st1) ='1' then   
-   program_counter_high_fr <= program_counter(15 downto 8);       -- STORE HIGH BYTE OF THE PROGRAMM COUNTER FOR RCALL/ICALL/CALL INSTRUCTIONS AND INTERRUPTS   
-  end if;
-  end if;
-  end if;
-  end process;
 
+  --High byte of the program counter.
+  load_program_counter_high_fr <= (active_operation.is_rcall or active_operation.is_icall or call_st1 or irq_st1) and clk_enable;
+  PROGRAM_COUNER_HIGH_FROZEN: entity generic_register port map(clk => clk, reset => reset, ld => load_program_counter_high_fr, d => program_counter(15 downto 8), q => program_counter_high_fr);
 
   program_counter_for_lpm_elpm:process(clk,reset)
   begin
@@ -735,7 +738,7 @@ begin
   program_counter + offset_rxx  when (active_operation.is_rjmp or active_operation.is_rcall) = '1' else     -- RJMP/RCALL
   reg_z_out when (active_operation.is_ijmp or active_operation.is_icall)='1'else                        -- IJMP/ICALL
   pa15_pm&reg_z_out(15 downto 1) when (active_operation.is_lpm or active_operation.is_elpm) ='1'else    -- LPM/ELPM
-  instruction_reg  when (jmp_st1 or call_st1)='1'else                    -- JMP/CALL
+  std_logic_vector(instruction_reg)  when (jmp_st1 or call_st1)='1'else                    -- JMP/CALL
   "0000000000" & irqackad_int & '0' when irq_st1 ='1' else                 -- INTERRUPT      
   dbusin & "00000000"  when (ret_st1 or reti_st1)='1' else                 -- RET/RETI -> PC HIGH BYTE                  
   "00000000" & dbusin  when (ret_st2 or reti_st2)='1' else                 -- RET/RETI -> PC LOW BYTE                       
@@ -1013,6 +1016,8 @@ begin
                               "10111" when irqlines(22)='1' else -- 0x002E  								  
                 "00000";	  
 
+      targets_i_flag <= '1' when sreg_bit_number_set = 7 else '0';
+
   -- MULTI CYCLE INSTRUCTION FLAG FOR IRQ
   cpu_busy <= active_operation.is_adiw or active_operation.is_sbiw or active_operation.is_cbi or active_operation.is_sbi or
             active_operation.is_rjmp or active_operation.is_ijmp or
@@ -1030,7 +1035,7 @@ begin
       active_operation.is_call or call_st1 or call_st2 or (call_st3 and cpuwait) or  -- CALL
       active_operation.is_push or (push_st and cpuwait) or                           -- PUSH (added 14.07.05)
       active_operation.is_pop or (pop_st and cpuwait) or                             -- POP  (added 14.07.05)
-        (active_operation.is_bclr and sreg_bop_wr_en(7)) or                 -- ??? CLI
+        (active_operation.is_bclr and targets_i_flag) or                 -- ??? CLI
         (iowe_int and sreg_adr_eq and not dbusout_int(7))or -- ??? Writing '0' to I flag (OUT/STD/ST/STD)
       nirq_st0 or
   --			active_operation.is_ret  or nret_st0 or                             -- Old variant 
@@ -1137,55 +1142,35 @@ begin
   end if;
   end process;
 
-  -- ########################################################################################
+  
+  --
+  -- Write enables for each of the flags.
+  --
+  FLAG_ENABLES:
+  entity flag_decoder port map(
 
-  -- SREG FLAGS WRITE ENABLE LOGIC
+    --Specifies which operation is currently being performed.
+    operation                => active_operation,
+    second_cycle_of_adiw     => adiw_st,
+    second_cycle_of_sbiw     => sbiw_st,
+    first_cycle_of_irq       => irq_st1,
+    third_cycle_of_reti      => reti_st3,
 
-  bclr_bset_op_en_logic:for i in sreg_bop_wr_en'range generate
-  sreg_bop_wr_en(i) <= '1' when (sreg_bit_number_set=i and (active_operation.is_bclr or active_operation.is_bset)='1') else '0';
-  end generate;
+    --The target bit number for bset/bclr functions. Has no meaning
+    --when the active operation is not bset/bclr.
+    bit_operation_bit_number => sreg_bit_number_set,
 
-  sreg_c_wr_en <= active_operation.is_add or active_operation.is_adc or (active_operation.is_adiw or adiw_st) or active_operation.is_sub  or active_operation.is_subi or 
-                active_operation.is_sbc or active_operation.is_sbci or (active_operation.is_sbiw or sbiw_st) or active_operation.is_com or active_operation.is_neg or
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
-                active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(0);
+    -- A record indicating which flags are affected by the active operation.
+    flags_affected           => flags_affected
+  );
 
-  sreg_z_wr_en <= active_operation.is_add or active_operation.is_adc or (active_operation.is_adiw or adiw_st) or active_operation.is_sub  or active_operation.is_subi or 
-                active_operation.is_sbc or active_operation.is_sbci or (active_operation.is_sbiw or sbiw_st) or
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
-                active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
-                active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(1);
-                
+  --TODO: get rid of?
+  sreg_fl_wr_en <= to_std_logic_vector(flags_affected);
 
-  sreg_n_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub  or active_operation.is_subi or 
-                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
-                active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
-                active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(2);
 
-  sreg_v_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub  or active_operation.is_subi or -- active_operation.is_adiw
-                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or active_operation.is_neg or active_operation.is_com or  -- active_operation.is_sbiw
-                active_operation.is_inc or active_operation.is_dec or
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
-                active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(3) or
-        active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor; -- V-flag bug fixing
-
-  sreg_s_wr_en <= active_operation.is_add or active_operation.is_adc or adiw_st or active_operation.is_sub or active_operation.is_subi or 
-                active_operation.is_sbc or active_operation.is_sbci or sbiw_st or 
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or				
-        active_operation.is_and or active_operation.is_andi or active_operation.is_or or active_operation.is_ori or active_operation.is_eor or active_operation.is_com or active_operation.is_neg or
-        active_operation.is_inc or active_operation.is_dec or active_operation.is_lsr or active_operation.is_ror or active_operation.is_asr or sreg_bop_wr_en(4);
-
-  sreg_h_wr_en <= active_operation.is_add or active_operation.is_adc or active_operation.is_sub  or active_operation.is_subi or
-        active_operation.is_cp or active_operation.is_cpc or active_operation.is_cpi or
-                active_operation.is_sbc or active_operation.is_sbci or active_operation.is_neg or sreg_bop_wr_en(5);
-
-  sreg_t_wr_en <=  active_operation.is_bst or sreg_bop_wr_en(6);
-
-  sreg_i_wr_en <= irq_st1 or reti_st3 or sreg_bop_wr_en(7); -- WAS "irq_start"
-
-  sreg_fl_in <=  bit_pr_sreg_out when (active_operation.is_bst or active_operation.is_bclr or active_operation.is_bset)='1' else		           -- TO THE SREG
-  reti_st3&'0'&alu_flags_out.h&alu_flags_out.s&alu_flags_out.v&alu_flags_out.n&alu_flags_out.z&alu_flags_out.c;      
+  sreg_fl_in <=  
+    bit_pr_sreg_out when (active_operation.is_bst or active_operation.is_bclr or active_operation.is_bset)='1' else		           -- TO THE SREG
+    reti_st3&'0'&alu_flags_out.h&alu_flags_out.s&alu_flags_out.v&alu_flags_out.n&alu_flags_out.z&alu_flags_out.c;      
                
   -- #################################################################################################################
 

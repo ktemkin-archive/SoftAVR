@@ -160,7 +160,7 @@ end component;
 --end component;
 
 -- Core itself
-component AVR_Core is port(
+Component AVR_Core is port(
                         --Clock and reset
 	                    cp2         : in std_logic;
                         cp2en       : in std_logic;
@@ -195,7 +195,7 @@ component AVR_Core is port(
                         globint	    : out std_logic;
                         --Watchdog
                         wdri	    : out std_logic);
-end component;
+End component;
 
 
 -- Reset generator
@@ -290,28 +290,28 @@ component JTAGOCDPrgTop is port(
 end component;
 
 
-component uart is port(
-	                -- AVR Control
-                    ireset     : in  std_logic;
-                    cp2	       : in  std_logic;
-                    adr        : in  std_logic_vector(15 downto 0);
-                    dbus_in    : in  std_logic_vector(7 downto 0);
-                    dbus_out   : out std_logic_vector(7 downto 0);
-                    iore       : in  std_logic;
-                    iowe       : in  std_logic;
-                    out_en     : out std_logic; 
-                    -- UART
-                    rxd        : in  std_logic;
-                    rx_en      : out std_logic;
-                    txd        : out std_logic;
-                    tx_en      : out std_logic;
-                    -- IRQ
-                    txcirq     : out std_logic;
-                    txc_irqack : in  std_logic;
-                    udreirq    : out std_logic;
-			        rxcirq     : out std_logic
-		            );
-end component;
+--component uart is port(
+--	                -- AVR Control
+--                    ireset     : in  std_logic;
+--                    cp2	       : in  std_logic;
+--                    adr        : in  std_logic_vector(15 downto 0);
+--                    dbus_in    : in  std_logic_vector(7 downto 0);
+--                    dbus_out   : out std_logic_vector(7 downto 0);
+--                    iore       : in  std_logic;
+--                    iowe       : in  std_logic;
+--                    out_en     : out std_logic; 
+--                    -- UART
+--                    rxd        : in  std_logic;
+--                    rx_en      : out std_logic;
+--                    txd        : out std_logic;
+--                    tx_en      : out std_logic;
+--                    -- IRQ
+--                    txcirq     : out std_logic;
+--                    txc_irqack : in  std_logic;
+--                    udreirq    : out std_logic;
+--			        rxcirq     : out std_logic
+--		            );
+--end component;
 
 
 

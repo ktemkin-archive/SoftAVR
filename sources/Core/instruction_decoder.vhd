@@ -24,7 +24,7 @@ entity instruction_decoder is port(
   -- A "decoded" one-hot version of the current instruction. 
   -- Contains a range of "is_<instruction>" signals, which indicate the type of 
   -- the current instruction.
-  operation   : out decoded_operation
+  operation   : buffer decoded_operation
 
 );
 end instruction_decoder;
